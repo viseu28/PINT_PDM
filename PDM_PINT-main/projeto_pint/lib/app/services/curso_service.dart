@@ -32,7 +32,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/curso_model.dart';
 import 'package:projeto_pint/app/utils/file_downloader.dart';
 import 'package:projeto_pint/app/database/local_database.dart';
-import '../../config/api_config.dart';
+import '../config/api_config.dart';
 
 class CursoService {
   static String get baseUrl => ApiConfig.baseUrl;

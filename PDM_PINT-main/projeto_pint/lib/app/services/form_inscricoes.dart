@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../database/local_database.dart';
-import '../../config/api_config.dart';
+import '../config/api_config.dart';
 
 
 class FormInscricoesService {

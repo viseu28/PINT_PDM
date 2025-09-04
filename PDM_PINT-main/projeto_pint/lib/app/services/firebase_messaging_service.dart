@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:projeto_pint/app/services/notificacao_service.dart';
 import 'package:http/http.dart' as http;
-import '../../config/api_config.dart';
+import '../config/api_config.dart';
 
 class FirebaseMessagingService {
   static final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;

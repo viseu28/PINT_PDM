@@ -1,10 +1,10 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/projetos_model.dart';
-import '../../config/api_config.dart';
+import '../config/api_config.dart';
 
 class ProjetoService {
-  static const String baseUrl = '${ApiConfig.baseUrl}/projetos';
+  static String get baseUrl => '${ApiConfig.baseUrl}/projetos';
 
   // Busca todos os projetos
   static Future<List<ProjetoModel>> fetchProjetos() async {

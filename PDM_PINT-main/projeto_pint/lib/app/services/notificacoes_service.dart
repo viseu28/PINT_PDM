@@ -2,10 +2,10 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/notificacoes_model.dart';
-import '../../config/api_config.dart';
+import '../config/api_config.dart';
 
 class NotificacaoService {
-  static const String baseUrl = '${ApiConfig.baseUrl}/notificacoes';
+  static String get baseUrl => '${ApiConfig.baseUrl}/notificacoes';
 
   static Future<List<NotificacaoModel>> fetchNotificacoes() async {
     final prefs = await SharedPreferences.getInstance();
