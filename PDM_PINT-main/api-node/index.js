@@ -21,22 +21,46 @@ app.use((req, res, next) => {
   next();
 });
 
-// Conexão à base de dados com configurações otimizadas
-const sequelize = new Sequelize('pint', 'grupo', 'paswwordpint', {
-  host: '172.201.108.53',
-  dialect: 'postgres',
-  port: 5432,
-  pool: {
-    max: 5,          // Máximo 5 conexões simultâneas
-    min: 1,          // Mínimo 1 conexão
-    acquire: 30000,  // Timeout para adquirir conexão (30s)
-    idle: 10000,     // Tempo antes de fechar conexão inativa (10s)
-  },
-  logging: false,    // Desativar logs SQL para reduzir overhead
-  retry: {
-    max: 3,          // Máximo 3 tentativas de reconexão
-  },
-});
+// Configuração da base de dados usando variáveis de ambiente
+const sequelize = process.env.DATABASE_URL 
+  ? new Sequelize(process.env.DATABASE_URL, {
+      dialect: 'postgres',
+      pool: {
+        max: 5,          // Máximo 5 conexões simultâneas
+        min: 1,          // Mínimo 1 conexão
+        acquire: 30000,  // Timeout para adquirir conexão (30s)
+        idle: 10000,     // Tempo antes de fechar conexão inativa (10s)
+      },
+      logging: false,    // Desativar logs SQL para reduzir overhead
+      retry: {
+        max: 3,          // Máximo 3 tentativas de reconexão
+      },
+      dialectOptions: {
+        ssl: process.env.NODE_ENV === 'production' ? {
+          require: true,
+          rejectUnauthorized: false
+        } : false
+      }
+    })
+  : new Sequelize(
+      process.env.DB_NAME || 'pint', 
+      process.env.DB_USER || 'grupo', 
+      process.env.DB_PASSWORD || 'paswwordpint', {
+        host: process.env.DB_HOST || '172.201.108.53',
+        dialect: 'postgres',
+        port: process.env.DB_PORT || 5432,
+        pool: {
+          max: 5,          // Máximo 5 conexões simultâneas
+          min: 1,          // Mínimo 1 conexão
+          acquire: 30000,  // Timeout para adquirir conexão (30s)
+          idle: 10000,     // Tempo antes de fechar conexão inativa (10s)
+        },
+        logging: false,    // Desativar logs SQL para reduzir overhead
+        retry: {
+          max: 3,          // Máximo 3 tentativas de reconexão
+        },
+      }
+    );
 
 sequelize.authenticate()
   .then(() => {
@@ -158,6 +182,24 @@ app.use('/projetos', projetosRouter);
 
 const permissoesRoutes = require('./endpoints/permissoes.endpoint')(db);
 app.use('/permissoes', permissoesRoutes);
+
+// Health check endpoint para Render
+app.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    service: 'PINT PDM API'
+  });
+});
+
+// Root endpoint
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'PINT PDM API está a funcionar!', 
+    version: '1.0.0',
+    timestamp: new Date().toISOString()
+  });
+});
 
 // Iniciar servidor
 const PORT = process.env.PORT || 3000;

@@ -1,18 +1,32 @@
 class ApiConfig {
-  // Configurações de URL - ajuste conforme necessário:
-  // - Para emulador Android: 10.0.2.2:3000
-  // - Para dispositivo físico na mesma rede: IP da máquina (ex: 192.168.1.68:3000)
-  // - Para teste local: localhost:3000
-  static const String baseUrl = 'http://192.168.1.68:3000';
+  // URLs de desenvolvimento e produção
+  static const String _localBaseUrl = 'http://192.168.1.68:3000';
+  static const String _productionBaseUrl = 'https://pint-pdm-api.onrender.com';
+  
+  // Configuração automática de ambiente
+  // Para build web (produção), usar URL do Render
+  // Para desenvolvimento mobile, usar URL local
+  static String get baseUrl {
+    const bool isProduction = bool.fromEnvironment('dart.vm.product');
+    return isProduction ? _productionBaseUrl : _localBaseUrl;
+  }
   
   // Endpoints específicos
-  static const String authUrl = '$baseUrl/utilizadores';
-  static const String cursosUrl = '$baseUrl/cursos';
-  static const String notificacoesUrl = '$baseUrl/notificacoes';
-  static const String comentariosUrl = '$baseUrl/comentarios';
-  static const String favoritosUrl = '$baseUrl/favoritos';
-  static const String inscricoesUrl = '$baseUrl/inscricoes';
-  static const String forumUrl = '$baseUrl/forum';
+  static String get authUrl => '$baseUrl/utilizadores';
+  static String get cursosUrl => '$baseUrl/cursos';
+  static String get notificacoesUrl => '$baseUrl/notificacoes';
+  static String get comentariosUrl => '$baseUrl/comentarios';
+  static String get favoritosUrl => '$baseUrl/favoritos';
+  static String get inscricoesUrl => '$baseUrl/inscricoes';
+  static String get forumUrl => '$baseUrl/forum';
+  static String get projetosUrl => '$baseUrl/projetos';
+  static String get likesForumUrl => '$baseUrl/likes_forum';
+  static String get respostasUrl => '$baseUrl/respostas';
+  static String get denunciaUrl => '$baseUrl/denuncia';
+  static String get fcmTokenUrl => '$baseUrl/fcm-token';
+  static String get forumPedidosUrl => '$baseUrl/forum-pedidos';
+  static String get permissoesUrl => '$baseUrl/permissoes';
+  static String get healthUrl => '$baseUrl/health';
   
   // Configurações de timeout
   static const Duration timeout = Duration(seconds: 15);
