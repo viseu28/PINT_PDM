@@ -245,6 +245,118 @@ app.get('/create-main-tables', async (req, res) => {
   }
 });
 
+// Endpoint para importar dados via SQL (POST)
+app.post('/import-data', async (req, res) => {
+  try {
+    console.log('📥 Iniciando importação de dados...');
+    const { sqlStatements } = req.body;
+    
+    if (!sqlStatements || !Array.isArray(sqlStatements)) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'sqlStatements deve ser um array de comandos SQL'
+      });
+    }
+    
+    const results = [];
+    const errors = [];
+    
+    // Executar cada comando SQL
+    for (let i = 0; i < sqlStatements.length; i++) {
+      const sql = sqlStatements[i].trim();
+      if (sql.length === 0) continue;
+      
+      try {
+        console.log(`📝 Executando SQL ${i + 1}/${sqlStatements.length}: ${sql.substring(0, 100)}...`);
+        const result = await sequelize.query(sql);
+        results.push({
+          index: i,
+          sql: sql.substring(0, 200) + '...',
+          status: 'success',
+          affectedRows: result[1]?.rowCount || 0
+        });
+      } catch (error) {
+        console.error(`❌ Erro no SQL ${i + 1}:`, error.message);
+        errors.push({
+          index: i,
+          sql: sql.substring(0, 200) + '...',
+          error: error.message
+        });
+      }
+    }
+    
+    console.log(`✅ Importação concluída: ${results.length} sucessos, ${errors.length} erros`);
+    
+    res.json({
+      status: 'completed',
+      message: `Importação concluída: ${results.length} sucessos, ${errors.length} erros`,
+      successful_imports: results.length,
+      failed_imports: errors.length,
+      results: results,
+      errors: errors,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro na importação:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Erro na importação de dados',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Endpoint para exportar dados de uma tabela específica
+app.get('/export-table/:tableName', async (req, res) => {
+  try {
+    const { tableName } = req.params;
+    console.log(`📤 Exportando dados da tabela: ${tableName}`);
+    
+    // Verificar se a tabela existe
+    const tableExists = await sequelize.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public' AND table_name = :tableName
+    `, {
+      replacements: { tableName },
+      type: sequelize.QueryTypes.SELECT
+    });
+    
+    if (tableExists.length === 0) {
+      return res.status(404).json({
+        status: 'error',
+        message: `Tabela '${tableName}' não encontrada`
+      });
+    }
+    
+    // Obter dados da tabela
+    const data = await sequelize.query(`SELECT * FROM "public"."${tableName}"`, {
+      type: sequelize.QueryTypes.SELECT
+    });
+    
+    console.log(`✅ ${data.length} registos exportados da tabela ${tableName}`);
+    
+    res.json({
+      status: 'success',
+      table: tableName,
+      total_records: data.length,
+      data: data,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro na exportação:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Erro na exportação de dados',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // Endpoint para verificar utilizador específico
 app.get('/check-user/:email', async (req, res) => {
   try {
