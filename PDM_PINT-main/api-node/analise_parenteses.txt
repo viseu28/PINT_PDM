@@ -1,0 +1,24 @@
+// Análise da estrutura de parênteses para o Modal
+
+Dialog(
+  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+  child: ConstrainedBox(                                    // ← ABRE ConstrainedBox
+    constraints: BoxConstraints(
+      maxWidth: MediaQuery.of(context).size.width * 0.9,
+      maxHeight: MediaQuery.of(context).size.height * 0.8,
+    ),
+    child: Container(                                       // ← ABRE Container
+      padding: EdgeInsets.all(20),
+      child: Form(                                          // ← ABRE Form
+        key: _formKey,
+        child: Column(                                      // ← ABRE Column
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ... conteúdo ...
+          ],                                                // ← FECHA Column
+        ),                                                  // ← FECHA Form
+      ),                                                    // ← FECHA Container
+    ),                                                      // ← FECHA ConstrainedBox - FALTA ESTE!
+  ),                                                        // ← FECHA Dialog
+)

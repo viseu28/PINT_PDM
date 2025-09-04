@@ -1,0 +1,68 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# VS Code (optional - pode descomentar se não quiser versionar)
+#.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# Ficheiros de teste e debug (adicionados)
+test_*.js
+testar_*.js
+verificar_*.js
+investigar_*.js
+teste_*.js
+**/GUIA_*.md
+**/FIXES_*.md
+**/teste_*.md
+
+# Plataformas não utilizadas (se removidas)
+/linux/
+/macos/
+/windows/
+/web/
+
+# Ficheiros Node.js desnecessários no Flutter
+package.json
+package-lock.json
+
+# Ficheiros temporários
+*.tmp
+*.temp
+*.bak

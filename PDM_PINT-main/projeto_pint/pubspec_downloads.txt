@@ -1,0 +1,5 @@
+# Dependências para download real de ficheiros
+# Adicione estas linhas à secção dependencies do seu pubspec.yaml
+
+dio: ^5.4.3
+permission_handler: ^11.3.1

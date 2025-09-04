@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestão de Pedidos de Tópicos - Administrador</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .filters {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        .filter-group {
+            margin-bottom: 10px;
+        }
+        label {
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        select, button, input {
+            padding: 8px 15px;
+            margin-right: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button.aceitar {
+            background-color: #28a745;
+        }
+        button.aceitar:hover {
+            background-color: #1e7e34;
+        }
+        button.recusar {
+            background-color: #dc3545;
+        }
+        button.recusar:hover {
+            background-color: #c82333;
+        }
+        .pedido-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            padding: 20px;
+            background-color: #fff;
+        }
+        .pedido-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .pedido-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .info-item {
+            display: flex;
+            flex-direction: column;
+        }
+        .info-label {
+            font-weight: bold;
+            color: #555;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+        }
+        .info-value {
+            color: #333;
+            background-color: #f8f9fa;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #e9ecef;
+        }
+        .estado {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .estado.pendente {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        .estado.aceite {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .estado.recusado {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .acoes {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+        .observacoes-form {
+            margin-top: 10px;
+        }
+        .observacoes-form textarea {
+            width: 100%;
+            min-height: 60px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            resize: vertical;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📝 Gestão de Pedidos de Tópicos</h1>
+        
+        <div class="stats" id="statsContainer">
+            <!-- Estatísticas serão carregadas aqui -->
+        </div>
+        
+        <div class="filters">
+            <div class="filter-group">
+                <label for="estadoFilter">Estado:</label>
+                <select id="estadoFilter">
+                    <option value="">Todos os Estados</option>
+                    <option value="pendente" selected>Pendentes</option>
+                    <option value="aceite">Aceites</option>
+                    <option value="recusado">Recusados</option>
+                </select>
+                
+                <label for="adminFilter">Admin ID:</label>
+                <input type="number" id="adminFilter" placeholder="ID do Admin" min="1">
+                
+                <button onclick="carregarPedidos()">🔄 Atualizar</button>
+                <button onclick="carregarTodosPedidos()">📋 Ver Todos</button>
+                <button onclick="carregarEstatisticas()">📊 Atualizar Stats</button>
+            </div>
+        </div>
+        
+        <div id="pedidosContainer">
+            <div class="loading">Carregando pedidos...</div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://192.168.1.68:3000/forum-pedidos';
+        
+        // Carregar estatísticas
+        async function carregarEstatisticas() {
+            try {
+                const response = await fetch(`${API_BASE}/pedidos`);
+                if (!response.ok) throw new Error('Erro ao carregar dados');
+                
+                const data = await response.json();
+                if (!data.success) throw new Error(data.message);
+                
+                const pedidos = data.pedidos;
+                const stats = {
+                    total: pedidos.length,
+                    pendentes: pedidos.filter(p => p.estado === 'pendente').length,
+                    aceites: pedidos.filter(p => p.estado === 'aceite').length,
+                    recusados: pedidos.filter(p => p.estado === 'recusado').length
+                };
+                
+                const statsContainer = document.getElementById('statsContainer');
+                statsContainer.innerHTML = `
+                    <div class="stat-card">
+                        <div class="stat-number">${stats.total}</div>
+                        <div class="stat-label">Total de Pedidos</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${stats.pendentes}</div>
+                        <div class="stat-label">Pendentes</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${stats.aceites}</div>
+                        <div class="stat-label">Aceites</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${stats.recusados}</div>
+                        <div class="stat-label">Recusados</div>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Erro ao carregar estatísticas:', error);
+            }
+        }
+        
+        async function carregarPedidos() {
+            const container = document.getElementById('pedidosContainer');
+            container.innerHTML = '<div class="loading">Carregando pedidos...</div>';
+            
+            try {
+                const estado = document.getElementById('estadoFilter').value;
+                let url = `${API_BASE}/pedidos`;
+                if (estado) {
+                    url += `?estado=${estado}`;
+                }
+                
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('Erro ao carregar pedidos');
+                
+                const data = await response.json();
+                if (!data.success) throw new Error(data.message);
+                
+                exibirPedidos(data.pedidos);
+            } catch (error) {
+                container.innerHTML = `<div class="loading">❌ Erro: ${error.message}</div>`;
+            }
+        }
+        
+        async function carregarTodosPedidos() {
+            document.getElementById('estadoFilter').value = '';
+            await carregarPedidos();
+        }
+        
+        function exibirPedidos(pedidos) {
+            const container = document.getElementById('pedidosContainer');
+            
+            if (pedidos.length === 0) {
+                container.innerHTML = '<div class="loading">📭 Nenhum pedido encontrado</div>';
+                return;
+            }
+            
+            container.innerHTML = pedidos.map(pedido => criarCardPedido(pedido)).join('');
+        }
+        
+        function criarCardPedido(pedido) {
+            const dataFormatada = new Date(pedido.data_pedido).toLocaleString('pt-PT');
+            const dataResposta = pedido.data_resposta ? 
+                new Date(pedido.data_resposta).toLocaleString('pt-PT') : 'N/A';
+            
+            return `
+                <div class="pedido-card">
+                    <div class="pedido-header">
+                        <h3>Pedido #${pedido.id}</h3>
+                        <span class="estado ${pedido.estado}">${pedido.estado}</span>
+                    </div>
+                    
+                    <div class="pedido-info">
+                        <div class="info-item">
+                            <span class="info-label">Utilizador:</span>
+                            <span class="info-value">${pedido.utilizador_nome || 'N/A'} (ID: ${pedido.user_id})</span>
+                        </div>
+                        
+                        <div class="info-item">
+                            <span class="info-label">Data do Pedido:</span>
+                            <span class="info-value">${dataFormatada}</span>
+                        </div>
+                        
+                        <div class="info-item">
+                            <span class="info-label">Categoria:</span>
+                            <span class="info-value">
+                                ${pedido.categoria_nome || pedido.categoria_sugerida || 'N/A'}
+                                ${pedido.categoria_sugerida ? ' (Nova sugerida)' : ''}
+                            </span>
+                        </div>
+                        
+                        <div class="info-item">
+                            <span class="info-label">Área:</span>
+                            <span class="info-value">
+                                ${pedido.area_nome || pedido.area_sugerida || 'N/A'}
+                                ${pedido.area_sugerida ? ' (Nova sugerida)' : ''}
+                            </span>
+                        </div>
+                        
+                        <div class="info-item">
+                            <span class="info-label">Tópico Sugerido:</span>
+                            <span class="info-value">${pedido.topico_sugerido}</span>
+                        </div>
+                        
+                        <div class="info-item">
+                            <span class="info-label">Admin Responsável:</span>
+                            <span class="info-value">${pedido.admin_nome || 'N/A'}</span>
+                        </div>
+                        
+                        ${pedido.observacoes ? `
+                        <div class="info-item" style="grid-column: 1/-1;">
+                            <span class="info-label">Observações:</span>
+                            <span class="info-value">${pedido.observacoes}</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                    
+                    ${pedido.estado === 'pendente' ? `
+                    <div class="acoes">
+                        <button class="aceitar" onclick="processarPedido(${pedido.id}, 'aceite')">
+                            ✅ Aceitar
+                        </button>
+                        <button class="recusar" onclick="processarPedido(${pedido.id}, 'recusado')">
+                            ❌ Recusar
+                        </button>
+                    </div>
+                    
+                    <div class="observacoes-form">
+                        <textarea id="obs_${pedido.id}" placeholder="Observações (opcional)..."></textarea>
+                    </div>
+                    ` : `
+                    <div class="info-item">
+                        <span class="info-label">Data da Resposta:</span>
+                        <span class="info-value">${dataResposta}</span>
+                    </div>
+                    `}
+                </div>
+            `;
+        }
+        
+        async function processarPedido(pedidoId, novoEstado) {
+            const adminId = document.getElementById('adminFilter').value;
+            if (!adminId) {
+                alert('⚠️ Por favor, insira o ID do Admin responsável!');
+                return;
+            }
+            
+            const observacoes = document.getElementById(`obs_${pedidoId}`).value.trim();
+            
+            try {
+                const response = await fetch(`${API_BASE}/pedidos/${pedidoId}/estado`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        estado: novoEstado,
+                        admin_responsavel: parseInt(adminId),
+                        observacoes: observacoes || null
+                    })
+                });
+                
+                if (!response.ok) throw new Error('Erro ao processar pedido');
+                
+                const data = await response.json();
+                if (!data.success) throw new Error(data.message);
+                
+                alert(`✅ Pedido ${novoEstado} com sucesso!`);
+                await carregarPedidos();
+                await carregarEstatisticas();
+                
+            } catch (error) {
+                alert(`❌ Erro: ${error.message}`);
+            }
+        }
+        
+        // Carregar dados iniciais
+        window.onload = () => {
+            carregarEstatisticas();
+            carregarPedidos();
+        };
+        
+        // Auto-refresh a cada 30 segundos se estiver vendo pendentes
+        setInterval(() => {
+            const estado = document.getElementById('estadoFilter').value;
+            if (estado === 'pendente' || estado === '') {
+                carregarEstatisticas();
+                if (estado === 'pendente') carregarPedidos();
+            }
+        }, 30000);
+    </script>
+</body>
+</html>

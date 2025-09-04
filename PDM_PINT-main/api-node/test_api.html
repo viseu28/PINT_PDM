@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste API Pedidos Tópicos</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-result { 
+            margin: 10px 0; 
+            padding: 10px; 
+            border-radius: 5px; 
+            border: 1px solid #ddd;
+        }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        button { 
+            background-color: #007bff; 
+            color: white; 
+            border: none; 
+            padding: 10px 20px; 
+            margin: 5px; 
+            border-radius: 5px; 
+            cursor: pointer;
+        }
+        button:hover { background-color: #0056b3; }
+        pre { background-color: #f8f9fa; padding: 10px; border-radius: 5px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Teste da API de Pedidos de Tópicos</h1>
+    
+    <div>
+        <button onclick="testarCategorias()">Testar Categorias</button>
+        <button onclick="testarAreas()">Testar Áreas</button>
+        <button onclick="criarPedido()">Criar Pedido</button>
+        <button onclick="testarPedidosUsuario()">Pedidos do Usuário</button>
+        <button onclick="testarTodosPedidos()">Todos os Pedidos</button>
+        <button onclick="executarTodosTestes()">Executar Todos os Testes</button>
+    </div>
+
+    <div id="resultados"></div>
+
+    <script>
+        const API_BASE = 'http://localhost:3000/api/forum-pedidos';
+        
+        function adicionarResultado(nome, sucesso, dados, erro = null) {
+            const div = document.createElement('div');
+            div.className = `test-result ${sucesso ? 'success' : 'error'}`;
+            
+            let conteudo = `<h3>${sucesso ? '✅' : '❌'} ${nome}</h3>`;
+            
+            if (sucesso) {
+                conteudo += `<p><strong>Status:</strong> ${dados.status}</p>`;
+                if (dados.data) {
+                    conteudo += `<pre>${JSON.stringify(dados.data, null, 2)}</pre>`;
+                }
+            } else {
+                conteudo += `<p><strong>Erro:</strong> ${erro}</p>`;
+            }
+            
+            div.innerHTML = conteudo;
+            document.getElementById('resultados').appendChild(div);
+        }
+
+        async function fazerRequisicao(url, metodo = 'GET', dados = null) {
+            try {
+                const opcoes = {
+                    method: metodo,
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                };
+                
+                if (dados) {
+                    opcoes.body = JSON.stringify(dados);
+                }
+                
+                const resposta = await fetch(url, opcoes);
+                const dadosResposta = await resposta.json();
+                
+                return {
+                    sucesso: resposta.ok,
+                    status: resposta.status,
+                    data: dadosResposta
+                };
+            } catch (erro) {
+                return {
+                    sucesso: false,
+                    erro: erro.message
+                };
+            }
+        }
+
+        async function testarCategorias() {
+            const resultado = await fazerRequisicao(`${API_BASE}/categorias`);
+            if (resultado.sucesso) {
+                adicionarResultado('GET Categorias', true, resultado);
+            } else {
+                adicionarResultado('GET Categorias', false, null, resultado.erro);
+            }
+        }
+
+        async function testarAreas() {
+            const resultado = await fazerRequisicao(`${API_BASE}/areas/1`);
+            if (resultado.sucesso) {
+                adicionarResultado('GET Áreas da Categoria 1', true, resultado);
+            } else {
+                adicionarResultado('GET Áreas da Categoria 1', false, null, resultado.erro);
+            }
+        }
+
+        async function criarPedido() {
+            const dadosPedido = {
+                user_id: 1,
+                categoria_id: 1,
+                area_id: 1,
+                topico_sugerido: 'Teste via Browser ' + new Date().getTime(),
+                descricao: 'Teste de criação de pedido via interface web'
+            };
+            
+            const resultado = await fazerRequisicao(`${API_BASE}/pedidos`, 'POST', dadosPedido);
+            if (resultado.sucesso) {
+                adicionarResultado('POST Criar Pedido', true, resultado);
+            } else {
+                adicionarResultado('POST Criar Pedido', false, null, resultado.erro);
+            }
+        }
+
+        async function testarPedidosUsuario() {
+            const resultado = await fazerRequisicao(`${API_BASE}/pedidos/usuario/1`);
+            if (resultado.sucesso) {
+                adicionarResultado('GET Pedidos do Usuário 1', true, resultado);
+            } else {
+                adicionarResultado('GET Pedidos do Usuário 1', false, null, resultado.erro);
+            }
+        }
+
+        async function testarTodosPedidos() {
+            const resultado = await fazerRequisicao(`${API_BASE}/pedidos`);
+            if (resultado.sucesso) {
+                adicionarResultado('GET Todos os Pedidos', true, resultado);
+            } else {
+                adicionarResultado('GET Todos os Pedidos', false, null, resultado.erro);
+            }
+        }
+
+        async function executarTodosTestes() {
+            document.getElementById('resultados').innerHTML = '';
+            
+            await testarCategorias();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            await testarAreas();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            await criarPedido();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            await testarPedidosUsuario();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            await testarTodosPedidos();
+        }
+    </script>
+</body>
+</html>

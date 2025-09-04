@@ -1,0 +1,181 @@
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const { Sequelize } = require('sequelize');
+const initModels = require('./models/init-models');
+const { FirebasePushService, initializeFirebase } = require('./services/firebase-push.service');
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+// Servir arquivos estáticos da pasta uploads
+app.use('/uploads', express.static('public/uploads'));
+
+// Middleware para log de todas as requisições
+app.use((req, res, next) => {
+  console.log(`📨 ${req.method} ${req.url} - ${new Date().toISOString()}`);
+  if (req.body && Object.keys(req.body).length > 0) {
+    console.log('📤 Body:', req.body);
+  }
+  next();
+});
+
+// Conexão à base de dados com configurações otimizadas
+const sequelize = new Sequelize('pint', 'grupo', 'paswwordpint', {
+  host: '172.201.108.53',
+  dialect: 'postgres',
+  port: 5432,
+  pool: {
+    max: 5,          // Máximo 5 conexões simultâneas
+    min: 1,          // Mínimo 1 conexão
+    acquire: 30000,  // Timeout para adquirir conexão (30s)
+    idle: 10000,     // Tempo antes de fechar conexão inativa (10s)
+  },
+  logging: false,    // Desativar logs SQL para reduzir overhead
+  retry: {
+    max: 3,          // Máximo 3 tentativas de reconexão
+  },
+});
+
+sequelize.authenticate()
+  .then(() => {
+    console.log('Ligação à base de dados (Postgres) bem sucedida.');
+    initializeFirebase();
+  })
+  .catch((err) => console.log('Erro ao ligar à base de dados (Postgres): ', err));
+
+// Inicializar modelos
+const dbModels = initModels(sequelize);
+
+// Criar objeto db com modelos + sequelize
+const db = {
+  ...dbModels,
+  sequelize
+};
+
+// Endpoint básico
+app.get('/', (req, res) => {
+  res.send('API SoftSkills a funcionar 🚀');
+});
+
+// Endpoint para verificar status da API e BD
+app.get('/status', async (req, res) => {
+  try {
+    await sequelize.authenticate();
+    res.json({
+      status: 'OK',
+      database: 'Conectada ✅',
+      api: 'SoftSkills funcionando',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'ERROR',
+      database: 'Desconectada ❌',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Health check endpoint para Flutter
+app.get('/health', async (req, res) => {
+  try {
+    await sequelize.authenticate();
+    res.json({
+      status: 'healthy',
+      api: 'SoftSkills API',
+      database: 'Conectada ✅',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'unhealthy',
+      api: 'SoftSkills API', 
+      database: 'Desconectada ❌',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Percurso formativo endpoint
+const percursoFormativoRoutes = require('./endpoints/percurso_formativo.endpoint')(db);
+app.use('/percursoformativo', percursoFormativoRoutes);
+
+// Rotas
+const utilizadorRoutes = require('./endpoints/utilizador.endpoint')(db);
+app.use('/utilizadores', utilizadorRoutes);
+
+const cursoRoutes = require('./endpoints/curso.endpoint')(db);
+app.use('/cursos', cursoRoutes);
+
+const comentariosRoutes = require('./endpoints/comentarios.endpoint')(db);
+app.use('/comentarios', comentariosRoutes);
+
+const forumRoutes = require('./endpoints/forum.endpoint')(db);
+app.use('/forum', forumRoutes);
+
+const favoritosRoutes = require('./endpoints/favoritos.endpoint')(db);
+app.use('/favoritos', favoritosRoutes);
+
+const inscricoesRoutes = require('./endpoints/inscricoes.endpoint')(db);
+app.use('/inscricoes', inscricoesRoutes);
+
+const notificacoesRoutes = require('./endpoints/notificacoes.endpoint')(db);
+app.use('/notificacoes', notificacoesRoutes);
+
+const projetosRoutes = require('./endpoints/projetos.endpoint')(db);
+app.use('/projetos', projetosRoutes);
+
+const quizzesRoutes = require('./endpoints/quizzes.endpoint')(db);
+app.use('/quizzes', quizzesRoutes);
+
+// const materiaisRouter = require('./endpoints/materiais_apoio')(db);
+// app.use('/materiais_apoio', materiaisRouter);
+
+const respostaRoutes = require('./endpoints/resposta.endpoint')(db);
+app.use('/respostas', respostaRoutes);
+
+const guardadosRoutes = require('./endpoints/guardados.endpoint')(db);
+app.use('/guardados', guardadosRoutes);
+
+const likesForumRoutes = require('./endpoints/likes_forum.endpoint')(db);
+app.use('/likes_forum', likesForumRoutes);
+
+const denunciaRoutes = require('./endpoints/denuncia.endpoint')(db);
+app.use('/denuncia', denunciaRoutes);
+
+const fcmTokenRoutes = require('./endpoints/fcm-token.endpoint')(db);
+app.use('/fcm-token', fcmTokenRoutes);
+
+const forumPedidosRoutes = require('./endpoints/forum-pedidos.endpoint')(db);
+app.use('/forum-pedidos', forumPedidosRoutes);
+
+const projetosRouter = require('./endpoints/projetos.endpoint')(db);
+app.use('/projetos', projetosRouter);
+
+const permissoesRoutes = require('./endpoints/permissoes.endpoint')(db);
+app.use('/permissoes', permissoesRoutes);
+
+// Iniciar servidor
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Servidor a correr em http://0.0.0.0:${PORT}`);
+});
+
+// Graceful shutdown para fechar conexões adequadamente
+process.on('SIGTERM', async () => {
+  console.log('🔄 Encerrando servidor...');
+  await sequelize.close();
+  console.log('✅ Conexões fechadas');
+  process.exit(0);
+});
+
+process.on('SIGINT', async () => {
+  console.log('🔄 Encerrando servidor...');
+  await sequelize.close();
+  console.log('✅ Conexões fechadas');
+  process.exit(0);
+});
