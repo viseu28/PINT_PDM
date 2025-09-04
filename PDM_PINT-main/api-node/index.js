@@ -124,6 +124,32 @@ app.get('/health', async (req, res) => {
   }
 });
 
+// Endpoint para sincronizar/criar tabelas da base de dados
+app.get('/sync-database', async (req, res) => {
+  try {
+    console.log('🔄 Iniciando sincronização da base de dados...');
+    
+    // Sincronizar todos os modelos (criar tabelas se não existirem)
+    await sequelize.sync({ force: false }); // force: false para não apagar dados existentes
+    
+    console.log('✅ Base de dados sincronizada com sucesso!');
+    res.json({
+      status: 'success',
+      message: 'Base de dados sincronizada com sucesso!',
+      tables_created: 'Todas as tabelas foram criadas/verificadas',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Erro ao sincronizar base de dados:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Erro ao sincronizar base de dados',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // Percurso formativo endpoint
 const percursoFormativoRoutes = require('./endpoints/percurso_formativo.endpoint')(db);
 app.use('/percursoformativo', percursoFormativoRoutes);
