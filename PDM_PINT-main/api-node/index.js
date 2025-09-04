@@ -3140,6 +3140,160 @@ app.get('/fix-missing-data', async (req, res) => {
   }
 });
 
+// VERIFICAR ESTRUTURA REAL DAS TABELAS
+app.get('/check-table-structure', async (req, res) => {
+  try {
+    console.log('🔍 VERIFICANDO ESTRUTURA REAL DAS TABELAS...');
+    
+    const estruturas = {};
+    
+    // Verificar todas as tabelas existentes
+    try {
+      const [tabelas] = await sequelize.query(`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        ORDER BY table_name
+      `);
+      estruturas.tabelas_existentes = tabelas.map(t => t.table_name);
+    } catch (e) {
+      estruturas.tabelas_existentes = `Erro: ${e.message}`;
+    }
+    
+    // Verificar estrutura da tabela utilizador
+    try {
+      const [utilizadorCols] = await sequelize.query(`
+        SELECT column_name, data_type, is_nullable 
+        FROM information_schema.columns 
+        WHERE table_name = 'utilizador' 
+        ORDER BY ordinal_position
+      `);
+      estruturas.utilizador = utilizadorCols;
+    } catch (e) {
+      estruturas.utilizador = `Erro: ${e.message}`;
+    }
+    
+    // Verificar estrutura da tabela guardados
+    try {
+      const [guardadosCols] = await sequelize.query(`
+        SELECT column_name, data_type, is_nullable 
+        FROM information_schema.columns 
+        WHERE table_name = 'guardados' 
+        ORDER BY ordinal_position
+      `);
+      estruturas.guardados = guardadosCols;
+    } catch (e) {
+      estruturas.guardados = `Erro: ${e.message}`;
+    }
+    
+    // Verificar estrutura da tabela permissoes
+    try {
+      const [permissoesCols] = await sequelize.query(`
+        SELECT column_name, data_type, is_nullable 
+        FROM information_schema.columns 
+        WHERE table_name = 'permissoes' 
+        ORDER BY ordinal_position
+      `);
+      estruturas.permissoes = permissoesCols;
+    } catch (e) {
+      estruturas.permissoes = `Erro: ${e.message}`;
+    }
+    
+    // Verificar estrutura da tabela comentarios
+    try {
+      const [comentariosCols] = await sequelize.query(`
+        SELECT column_name, data_type, is_nullable 
+        FROM information_schema.columns 
+        WHERE table_name = 'comentarios' 
+        ORDER BY ordinal_position
+      `);
+      estruturas.comentarios = comentariosCols;
+    } catch (e) {
+      estruturas.comentarios = `Erro: ${e.message}`;
+    }
+    
+    // Verificar estrutura da tabela form_inscricao
+    try {
+      const [inscricaoCols] = await sequelize.query(`
+        SELECT column_name, data_type, is_nullable 
+        FROM information_schema.columns 
+        WHERE table_name = 'form_inscricao' 
+        ORDER BY ordinal_position
+      `);
+      estruturas.form_inscricao = inscricaoCols;
+    } catch (e) {
+      estruturas.form_inscricao = `Erro: ${e.message}`;
+    }
+    
+    // Verificar estrutura da tabela roles_permissoes
+    try {
+      const [rolesCols] = await sequelize.query(`
+        SELECT column_name, data_type, is_nullable 
+        FROM information_schema.columns 
+        WHERE table_name = 'roles_permissoes' 
+        ORDER BY ordinal_position
+      `);
+      estruturas.roles_permissoes = rolesCols;
+    } catch (e) {
+      estruturas.roles_permissoes = `Erro: ${e.message}`;
+    }
+    
+    // Verificar estrutura da tabela posts
+    try {
+      const [postsCols] = await sequelize.query(`
+        SELECT column_name, data_type, is_nullable 
+        FROM information_schema.columns 
+        WHERE table_name = 'posts' 
+        ORDER BY ordinal_position
+      `);
+      estruturas.posts = postsCols;
+    } catch (e) {
+      estruturas.posts = `Erro: ${e.message}`;
+    }
+    
+    // Verificar estrutura da tabela respostas
+    try {
+      const [respostasCols] = await sequelize.query(`
+        SELECT column_name, data_type, is_nullable 
+        FROM information_schema.columns 
+        WHERE table_name = 'respostas' 
+        ORDER BY ordinal_position
+      `);
+      estruturas.respostas = respostasCols;
+    } catch (e) {
+      estruturas.respostas = `Erro: ${e.message}`;
+    }
+    
+    // Verificar estrutura da tabela cursos
+    try {
+      const [cursosCols] = await sequelize.query(`
+        SELECT column_name, data_type, is_nullable 
+        FROM information_schema.columns 
+        WHERE table_name = 'cursos' 
+        ORDER BY ordinal_position
+      `);
+      estruturas.cursos = cursosCols;
+    } catch (e) {
+      estruturas.cursos = `Erro: ${e.message}`;
+    }
+    
+    res.json({
+      status: '🔍 ESTRUTURA DAS TABELAS VERIFICADA',
+      message: 'Estrutura real das tabelas na base de dados',
+      estruturas_reais: estruturas,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro ao verificar estrutura:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Erro ao verificar estrutura das tabelas',
+      error: error.message
+    });
+  }
+});
+
 // Root endpoint
 app.get('/', (req, res) => {
   res.json({ 
