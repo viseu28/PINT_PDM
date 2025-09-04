@@ -250,33 +250,51 @@ app.get('/insert-test-data', async (req, res) => {
   try {
     console.log('🔄 Inserindo dados de teste...');
     
-    // Verificar se utilizador já existe
-    const existingUser = await sequelize.query(`
-      SELECT * FROM "public"."utilizador" WHERE email = 'softskillsformando@gmail.com'
-    `);
+    // Usar Sequelize diretamente para inserir dados
+    const bcrypt = require('bcryptjs');
+    const hashedPassword = await bcrypt.hash('123456', 10);
     
-    if (existingUser[0].length === 0) {
+    // Verificar se utilizador já existe
+    const existingUser = await db.utilizador.findOne({
+      where: { email: 'softskillsformando@gmail.com' }
+    });
+    
+    if (!existingUser) {
       // Inserir utilizador de teste
-      await sequelize.query(`
-        INSERT INTO "public"."utilizador" 
-        (nome, email, palavrapasse, tipo, datanascimento, telemovel, morada, codigopostal, ultimoacesso, pontos, cidade, pais, estado, temquealterarpassword)
-        VALUES 
-        ('Utilizador Teste', 'softskillsformando@gmail.com', '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'formando', '1990-01-01', '123456789', 'Rua Teste', '1234-567', NOW(), 0, 'Lisboa', 'Portugal', 'ativo', false);
-      `);
+      await db.utilizador.create({
+        nome: 'Utilizador Teste',
+        email: 'softskillsformando@gmail.com',
+        palavrapasse: hashedPassword,
+        tipo: 'formando',
+        datanascimento: '1990-01-01',
+        telemovel: '123456789',
+        morada: 'Rua Teste',
+        codigopostal: '1234-567',
+        ultimoacesso: new Date(),
+        pontos: 0,
+        cidade: 'Lisboa',
+        pais: 'Portugal',
+        estado: 'ativo',
+        temquealterarpassword: false
+      });
     }
     
-    // Inserir curso de teste se não existir
-    const existingCourse = await sequelize.query(`
-      SELECT * FROM "public"."cursos" WHERE titulo = 'Curso de Teste'
-    `);
+    // Verificar se curso já existe
+    const existingCourse = await db.cursos.findOne({
+      where: { titulo: 'Curso de Teste' }
+    });
     
-    if (existingCourse[0].length === 0) {
-      await sequelize.query(`
-        INSERT INTO "public"."cursos" 
-        (titulo, descricao, tema, data_inicio, data_fim, tipo, estado, pontos)
-        VALUES 
-        ('Curso de Teste', 'Descrição do curso de teste', 'Soft Skills', NOW(), NOW() + INTERVAL '30 days', 'online', 'ativo', 100);
-      `);
+    if (!existingCourse) {
+      await db.cursos.create({
+        titulo: 'Curso de Teste',
+        descricao: 'Descrição do curso de teste',
+        tema: 'Soft Skills',
+        data_inicio: new Date(),
+        data_fim: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 dias
+        tipo: 'online',
+        estado: 'ativo',
+        pontos: 100
+      });
     }
     
     console.log('✅ Dados de teste inseridos com sucesso!');
