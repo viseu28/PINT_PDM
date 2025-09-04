@@ -1,7 +1,7 @@
 class ApiConfig {
   // URLs de desenvolvimento e produção
   static const String _localBaseUrl = 'http://192.168.1.68:3000';
-  static const String _productionBaseUrl = 'https://pint-pdm-api.onrender.com';
+  static const String _productionBaseUrl = 'https://pint-pdm.onrender.com';
   
   // Configuração automática de ambiente
   // Para build web (produção), usar URL do Render
