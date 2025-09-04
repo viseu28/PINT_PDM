@@ -357,18 +357,13 @@ app.get('/force-sync-all-tables', async (req, res) => {
   try {
     console.log('🔄 Forçando sincronização completa de TODAS as tabelas...');
     
-    // Desabilitar verificações de foreign key temporariamente
-    await sequelize.query('SET session_replication_role = replica;');
-    
-    // Sincronizar com força para criar TODAS as tabelas
+    // Sincronizar com logging detalhado
+    console.log('🔄 Iniciando sync com alter: true...');
     await sequelize.sync({ 
       force: false,  // Não apagar dados existentes
       alter: true,   // Permitir alterações de estrutura
-      logging: console.log  // Ver todos os comandos SQL
+      logging: (sql) => console.log('SQL:', sql)  // Ver todos os comandos SQL
     });
-    
-    // Reabilitar verificações de foreign key
-    await sequelize.query('SET session_replication_role = DEFAULT;');
     
     // Verificar quantas tabelas foram criadas
     const tablesQuery = await sequelize.query(`
@@ -381,6 +376,7 @@ app.get('/force-sync-all-tables', async (req, res) => {
     const createdTables = tablesQuery[0].map(row => row.table_name);
     
     console.log(`✅ Sincronização completa! ${createdTables.length} tabelas disponíveis`);
+    console.log('📋 Tabelas criadas:', createdTables.join(', '));
     
     res.json({
       status: 'success',
