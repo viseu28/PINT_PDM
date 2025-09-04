@@ -245,6 +245,51 @@ app.get('/create-main-tables', async (req, res) => {
   }
 });
 
+// Endpoint para inserir dados de teste
+app.get('/insert-test-data', async (req, res) => {
+  try {
+    console.log('🔄 Inserindo dados de teste...');
+    
+    // Inserir utilizador de teste
+    await sequelize.query(`
+      INSERT INTO "public"."utilizador" 
+      (nome, email, palavrapasse, tipo, datanascimento, telemovel, morada, codigopostal, ultimoacesso, pontos, cidade, pais, estado, temquealterarpassword)
+      VALUES 
+      ('Utilizador Teste', 'softskillsformando@gmail.com', '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'formando', '1990-01-01', '123456789', 'Rua Teste', '1234-567', NOW(), 0, 'Lisboa', 'Portugal', 'ativo', false)
+      ON CONFLICT (email) DO NOTHING;
+    `);
+    
+    // Inserir curso de teste
+    await sequelize.query(`
+      INSERT INTO "public"."cursos" 
+      (titulo, descricao, tema, data_inicio, data_fim, tipo, estado, pontos)
+      VALUES 
+      ('Curso de Teste', 'Descrição do curso de teste', 'Soft Skills', NOW(), NOW() + INTERVAL '30 days', 'online', 'ativo', 100)
+      ON CONFLICT DO NOTHING;
+    `);
+    
+    console.log('✅ Dados de teste inseridos com sucesso!');
+    res.json({
+      status: 'success',
+      message: 'Dados de teste inseridos com sucesso!',
+      data_inserted: {
+        user: 'softskillsformando@gmail.com',
+        password: '123456',
+        curso: 'Curso de Teste'
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Erro ao inserir dados de teste:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Erro ao inserir dados de teste',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // Percurso formativo endpoint
 const percursoFormativoRoutes = require('./endpoints/percurso_formativo.endpoint')(db);
 app.use('/percursoformativo', percursoFormativoRoutes);
