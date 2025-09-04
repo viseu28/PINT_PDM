@@ -245,6 +245,55 @@ app.get('/create-main-tables', async (req, res) => {
   }
 });
 
+// Endpoint para verificar utilizador específico
+app.get('/check-user/:email', async (req, res) => {
+  try {
+    const { email } = req.params;
+    console.log(`🔍 Verificando utilizador: ${email}`);
+    
+    // Procurar utilizador na base de dados
+    const user = await db.utilizador.findOne({
+      where: { email: email }
+    });
+    
+    if (user) {
+      res.json({
+        status: 'found',
+        user: {
+          id: user.idutilizador,
+          nome: user.nome,
+          email: user.email,
+          tipo: user.tipo,
+          estado: user.estado,
+          temquealterarpassword: user.temquealterarpassword
+        },
+        login_conditions: {
+          email_match: user.email === email,
+          tipo_formando: user.tipo === 'formando',
+          estado_ativo: user.estado === 'ativo',
+          can_login: user.email === email && user.tipo === 'formando' && user.estado === 'ativo'
+        },
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      res.json({
+        status: 'not_found',
+        message: `Utilizador ${email} não encontrado`,
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+  } catch (error) {
+    console.error('❌ Erro ao verificar utilizador:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Erro ao verificar utilizador',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // Endpoint para verificar todas as tabelas existentes
 app.get('/check-tables', async (req, res) => {
   try {
