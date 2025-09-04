@@ -1,0 +1,12 @@
+{
+  "name": "pint-pdm-deployment",
+  "version": "1.0.0",
+  "description": "PINT PDM API deployment",
+  "scripts": {
+    "start": "cd api-node && npm start",
+    "build": "cd api-node && npm install"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
