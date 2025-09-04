@@ -4,13 +4,14 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:projeto_pint/app/services/notificacao_service.dart';
 import 'package:http/http.dart' as http;
+import '../../config/api_config.dart';
 
 class FirebaseMessagingService {
   static final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
   static String? _token;
   static String? _currentUserId;
 
-  static String get apiBaseUrl => 'http://192.168.1.68:3000'; // IP da API (mesmo do AuthService)
+  static String get apiBaseUrl => '${ApiConfig.baseUrl}'; // IP da API (mesmo do AuthService)
 
   // Inicializar o serviço de notificações Firebase
   static Future<void> initialize() async {

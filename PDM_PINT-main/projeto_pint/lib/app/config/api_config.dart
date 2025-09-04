@@ -27,6 +27,8 @@ class ApiConfig {
   static String get forumPedidosUrl => '$baseUrl/forum-pedidos';
   static String get permissoesUrl => '$baseUrl/permissoes';
   static String get healthUrl => '$baseUrl/health';
+  static String get guardadosUrl => '$baseUrl/guardados';
+  static String get uploadsUrl => '$baseUrl/uploads';
   
   // Configurações de timeout
   static const Duration timeout = Duration(seconds: 15);

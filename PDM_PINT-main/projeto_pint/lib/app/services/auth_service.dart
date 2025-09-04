@@ -5,15 +5,13 @@ import 'dart:convert';
 import 'dart:async';
 import '../models/user_model.dart';
 import 'firebase_messaging_service.dart';
+import '../config/api_config.dart';
 
 class AuthService {
-  // Configurações de URL - ajuste conforme necessário:
-  // - Para emulador Android: 10.0.2.2:3000
-  // - Para dispositivo físico na mesma rede: IP da máquina (ex: 192.168.1.68:3000)
-  // - Para teste local: localhost:3000
-  static const String baseUrl = 'http://192.168.1.68:3000';
-  static const String apiUrl = '$baseUrl/utilizadores/login';
-  static const String userApiUrl = '$baseUrl/utilizadores';
+  // Configurações de URL usando ApiConfig centralizado
+  static String get baseUrl => ApiConfig.baseUrl;
+  static String get apiUrl => '${ApiConfig.baseUrl}/utilizadores/login';
+  static String get userApiUrl => '${ApiConfig.baseUrl}/utilizadores';
   static const Duration timeout = Duration(seconds: 5);
 
   //--------------------------------  CHECK IF USER IS LOGGED IN ------------------------------
@@ -342,10 +340,7 @@ class AuthService {
   //--------------------------------  TEST CONNECTIVITY ------------------------------
   static Future<String?> testConnectivity() async {
     final testUrls = [
-      'http://192.168.1.68:3000',
-      'http://192.168.1.68:3000',
-      'http://192.168.1.68:3000',
-      'http://127.0.0.1:3000',
+      ApiConfig.baseUrl,
     ];
 
     for (String url in testUrls) {

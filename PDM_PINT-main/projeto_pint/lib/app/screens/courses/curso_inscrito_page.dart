@@ -18,6 +18,7 @@ import 'package:file_picker/file_picker.dart';
 import '../../models/link_model.dart';
 import '../../services/link_service.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../config/api_config.dart';
 
 class CursoInscritoPage extends StatefulWidget {
   final Curso curso;
@@ -1692,7 +1693,7 @@ class _CursoInscritoPageState extends State<CursoInscritoPage>
 
       // Prepara o request
       final uri = Uri.parse(
-        'http://192.168.1.68:3000/projetos/$idProjeto/submeter',
+        '${ApiConfig.baseUrl}/projetos/$idProjeto/submeter',
       );
       debugPrint("Enviando para URI: $uri");
       final request = http.MultipartRequest('POST', uri);

@@ -2,9 +2,10 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/comentario_model.dart';
+import '../config/api_config.dart';
 
 class ComentarioService {
-  static const String baseUrl = 'http://192.168.1.68:3000';
+  static String get baseUrl => ApiConfig.baseUrl;
   
   // Buscar comentários por curso
   static Future<List<ComentarioModel>> buscarComentariosPorCurso(int idCurso) async {

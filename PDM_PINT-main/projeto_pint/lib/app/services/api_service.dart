@@ -1,9 +1,10 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:projeto_pint/app/database/local_database.dart';
+import 'package:projeto_pint/app/config/api_config.dart';
 
 class ApiService {
-  static const String apiUrl = 'http://192.168.1.68:3000/cursos';
+  static String get apiUrl => '${ApiConfig.baseUrl}/cursos';
 
   static Future<void> descarregarCursosDaAPI() async {
     final response = await http.get(Uri.parse(apiUrl));

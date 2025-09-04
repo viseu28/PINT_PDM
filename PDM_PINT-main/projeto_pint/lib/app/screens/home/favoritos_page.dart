@@ -265,7 +265,7 @@
 //   //               ? Image.network(
 //   //                   curso.imagemUrl!.startsWith('http')
 //   //                     ? curso.imagemUrl!
-//   //                     : 'http://192.168.1.68:3000/${curso.imagemUrl!}',
+//   //                     : '${ApiConfig.baseUrl}/${curso.imagemUrl!}',
 //   //                   height: 120,
 //   //                   width: double.infinity,
 //   //                   fit: BoxFit.cover,
@@ -587,7 +587,7 @@
 //     // Se é um nome de arquivo, construir URL do servidor
 //     if (curso.imagemUrl!.contains('.')) {
 //       // Primeiro tentar no diretório uploads
-//       final serverUrl = 'http://192.168.1.68:3000/uploads/${curso.imagemUrl!}';
+//       final serverUrl = '${ApiConfig.uploadsUrl}/${curso.imagemUrl!}';
 //       print('🔗 Tentando carregar do servidor: $serverUrl');
 //       return Image.network(
 //         serverUrl,
@@ -723,6 +723,7 @@ import '../../models/curso_model.dart';
 import '../courses/curso_detail_page.dart';
 import 'dart:convert'; 
 import 'dart:typed_data';
+import '../../../config/api_config.dart';
 
 class FavoritosPage extends StatefulWidget {
   const FavoritosPage({super.key});
@@ -820,7 +821,7 @@ class _FavoritosPageState extends State<FavoritosPage> {
     // Se é um nome de arquivo, construir URL do servidor
     if (curso.imagemUrl!.contains('.')) {
       // Primeiro tentar no diretório uploads
-      final serverUrl = 'http://192.168.1.68:3000/uploads/${curso.imagemUrl!}';
+      final serverUrl = '${ApiConfig.uploadsUrl}/${curso.imagemUrl!}';
       print('🔗 Tentando carregar do servidor: $serverUrl');
       return Image.network(
         serverUrl,

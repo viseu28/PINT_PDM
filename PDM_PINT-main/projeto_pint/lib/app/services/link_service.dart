@@ -1,9 +1,10 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/link_model.dart';
+import '../../config/api_config.dart';
 
 class LinkService {
-  static const String baseUrl = 'http://192.168.1.68:3000/cursos';
+  static const String baseUrl = '${ApiConfig.baseUrl}/cursos';
 
   // Busca links por curso
   static Future<List<LinkModel>> fetchLinksPorCurso(int idCurso) async {

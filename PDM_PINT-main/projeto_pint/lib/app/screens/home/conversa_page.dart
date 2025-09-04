@@ -6,6 +6,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../services/curso_service.dart';
 import 'package:projeto_pint/app/database/local_database.dart';
+import '../../config/api_config.dart';
 
 class ConversaPage extends StatefulWidget {
   final dynamic topico;
@@ -41,7 +42,7 @@ class _ConversaPageState extends State<ConversaPage> {
   Future<void> likeResposta(String idResposta) async {
     print('[Forum] Like -> user=${widget.idUtilizador}, post=$idResposta');
     await http.post(
-      Uri.parse('http://192.168.1.68:3000/likes_forum'),
+      Uri.parse('${ApiConfig.likesForumUrl}'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'idutilizador': widget.idUtilizador, // ALTERADO
@@ -69,7 +70,7 @@ class _ConversaPageState extends State<ConversaPage> {
   Future<void> dislikeResposta(String idResposta) async {
     print('[Forum] Dislike -> user=${widget.idUtilizador}, post=$idResposta');
     await http.post(
-      Uri.parse('http://192.168.1.68:3000/likes_forum'),
+      Uri.parse('${ApiConfig.baseUrl}/likes_forum'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'idutilizador': widget.idUtilizador, // ALTERADO
@@ -99,7 +100,7 @@ class _ConversaPageState extends State<ConversaPage> {
       '[Forum] Remover Like/Dislike -> user=${widget.idUtilizador}, post=$idResposta',
     );
     await http.delete(
-      Uri.parse('http://192.168.1.68:3000/likes_forum'),
+      Uri.parse('${ApiConfig.baseUrl}/likes_forum'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'idutilizador': widget.idUtilizador, // ALTERADO
@@ -179,7 +180,7 @@ class _ConversaPageState extends State<ConversaPage> {
       print('📝 Enviando resposta normal...');
       // Enviar resposta normal (com ou sem URL)
       await http.post(
-        Uri.parse('http://192.168.1.68:3000/respostas'),
+        Uri.parse('${ApiConfig.respostasUrl}'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'idpost': widget.topico['idpost'],
@@ -207,7 +208,7 @@ class _ConversaPageState extends State<ConversaPage> {
 
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse('http://192.168.1.68:3000/respostas/upload'),
+        Uri.parse('${ApiConfig.respostasUrl}/upload'),
       );
 
       request.fields.addAll({
@@ -325,7 +326,7 @@ class _ConversaPageState extends State<ConversaPage> {
     try {
       final response = await http.get(
         Uri.parse(
-          'http://192.168.1.68:3000/respostas/${widget.topico['idpost']}',
+          '${ApiConfig.respostasUrl}/${widget.topico['idpost']}',
         ),
       );
 
@@ -378,7 +379,7 @@ class _ConversaPageState extends State<ConversaPage> {
       final response = await http
           .get(
             Uri.parse(
-              'http://192.168.1.68:3000/respostas/${widget.topico['idpost']}',
+              '${ApiConfig.respostasUrl}/${widget.topico['idpost']}',
             ),
           )
           .timeout(Duration(seconds: 5));
@@ -413,7 +414,7 @@ class _ConversaPageState extends State<ConversaPage> {
 
   Future<void> denunciarComentario(String idComentario) async {
     await http.post(
-      Uri.parse('http://192.168.1.68:3000/denuncia'),
+      Uri.parse('${ApiConfig.denunciaUrl}'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'idcomentario': int.parse(idComentario),
@@ -427,7 +428,7 @@ class _ConversaPageState extends State<ConversaPage> {
 
   Future<void> eliminarComentario(String idComentario) async {
     await http.delete(
-      Uri.parse('http://192.168.1.68:3000/respostas/$idComentario'),
+      Uri.parse('${ApiConfig.respostasUrl}/$idComentario'),
     );
     _refreshRespostas();
   }

@@ -8,6 +8,7 @@ import '../../widgets/notification_badge.dart';
 import '../courses/curso_detail_page.dart';
 import '../courses/curso_inscrito_page.dart';
 import '../../database/local_database.dart';
+import '../../../config/api_config.dart';
 
 class CoursesScreen extends StatefulWidget {
   @override
@@ -1198,7 +1199,7 @@ void _logCursoDetails(Curso curso) {
                               // Se é um nome de arquivo, construir URL do servidor
                               if (curso.imagemUrl!.contains('.')) {
                                 // Primeiro tentar no diretório uploads
-                                final serverUrl = 'http://192.168.1.70:3000/uploads/${curso.imagemUrl!}';
+                                final serverUrl = '${ApiConfig.uploadsUrl}/${curso.imagemUrl!}';
                                 print('🔗 Tentando carregar do servidor: $serverUrl');
                                 return Image.network(
                                   serverUrl,

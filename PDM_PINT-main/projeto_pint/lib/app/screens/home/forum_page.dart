@@ -14,6 +14,7 @@ import 'conversa_page.dart';
 import 'guardados_page.dart';
 import 'perfil_page.dart';
 import '../../services/curso_service.dart';
+import '../../../config/api_config.dart';
 
 class ForumPage extends StatefulWidget {
   const ForumPage({super.key});
@@ -105,7 +106,7 @@ class _ForumPageState extends State<ForumPage> {
   // Funções para guardar/remover e buscar guardados do backend
   Future<void> guardarPost(int idUtilizador, int idPost) async {
     await http.post(
-      Uri.parse('http://192.168.1.68:3000/guardados'),
+      Uri.parse('${ApiConfig.guardadosUrl}'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'idutilizador': idUtilizador, 'idpost': idPost}),
     );
@@ -113,7 +114,7 @@ class _ForumPageState extends State<ForumPage> {
 
   Future<void> removerGuardado(int idUtilizador, int idPost) async {
     await http.delete(
-      Uri.parse('http://192.168.1.68:3000/guardados'),
+      Uri.parse('${ApiConfig.guardadosUrl}'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'idutilizador': idUtilizador, 'idpost': idPost}),
     );
@@ -121,7 +122,7 @@ class _ForumPageState extends State<ForumPage> {
 
   Future<Set<int>> fetchGuardados(int idUtilizador) async {
     final response = await http.get(
-      Uri.parse('http://192.168.1.68:3000/guardados/$idUtilizador'),
+      Uri.parse('${ApiConfig.guardadosUrl}/$idUtilizador'),
     );
     if (response.statusCode == 200) {
       final List data = jsonDecode(response.body);
@@ -133,7 +134,7 @@ class _ForumPageState extends State<ForumPage> {
   // Funções para likes/dislikes
   Future<void> likePost(int idUtilizador, int idPost) async {
     await http.post(
-      Uri.parse('http://192.168.1.68:3000/likes_forum'),
+      Uri.parse('${ApiConfig.baseUrl}/likes_forum'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'idutilizador': idUtilizador,
@@ -146,7 +147,7 @@ class _ForumPageState extends State<ForumPage> {
 
   Future<void> dislikePost(int idUtilizador, int idPost) async {
     await http.post(
-      Uri.parse('http://192.168.1.68:3000/likes_forum'),
+      Uri.parse('${ApiConfig.baseUrl}/likes_forum'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'idutilizador': idUtilizador,
@@ -159,7 +160,7 @@ class _ForumPageState extends State<ForumPage> {
 
   Future<void> removerLikeDislike(int idUtilizador, int idPost) async {
     await http.delete(
-      Uri.parse('http://192.168.1.68:3000/likes_forum'),
+      Uri.parse('${ApiConfig.baseUrl}/likes_forum'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'idutilizador': idUtilizador, 'idpost': idPost}),
     );
@@ -169,14 +170,14 @@ class _ForumPageState extends State<ForumPage> {
   Future<void> fetchLikesDislikes(int idUtilizador) async {
     try {
       final response = await http.get(
-        Uri.parse('http://192.168.1.68:3000/likes_forum/$idUtilizador'),
+        Uri.parse('${ApiConfig.baseUrl}/likes_forum/$idUtilizador'),
       );
       if (response.statusCode == 200) {
         final List data = jsonDecode(response.body);
 
         // Obter lista de posts existentes para filtrar likes órfãos
         final postsResponse = await http.get(
-          Uri.parse('http://192.168.1.68:3000/forum/topicos'),
+          Uri.parse('${ApiConfig.baseUrl}/forum/topicos'),
         );
 
         if (postsResponse.statusCode == 200) {
@@ -243,7 +244,7 @@ class _ForumPageState extends State<ForumPage> {
   // NOVO: Busca tópicos só para o dropdown
   Future<List<dynamic>> fetchTopicosDropdown() async {
     final response = await http.get(
-      Uri.parse('http://192.168.1.68:3000/forum/topicos_dropdown'),
+      Uri.parse('${ApiConfig.baseUrl}/forum/topicos_dropdown'),
     );
     if (response.statusCode == 200) {
       return json.decode(response.body);
@@ -256,7 +257,7 @@ class _ForumPageState extends State<ForumPage> {
   Future<void> denunciarPost(int idPost, String motivo) async {
     if (currentUser == null) return;
     final response = await http.post(
-      Uri.parse('http://192.168.1.68:3000/denuncia'),
+      Uri.parse('${ApiConfig.denunciaUrl}'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'idpost': idPost,
@@ -274,7 +275,7 @@ class _ForumPageState extends State<ForumPage> {
   // NOVO: Busca categorias e áreas para o dropdown
   Future<List<dynamic>> fetchCategoriasAreasTopicos() async {
     final response = await http.get(
-      Uri.parse('http://192.168.1.68:3000/forum/categorias_areas_topicos'),
+      Uri.parse('${ApiConfig.baseUrl}/forum/categorias_areas_topicos'),
     );
     if (response.statusCode == 200) {
       return json.decode(response.body);
@@ -1367,7 +1368,7 @@ class _ForumPageState extends State<ForumPage> {
     }
 
     final response = await http.post(
-      Uri.parse('http://192.168.1.68:3000/forum/posts'),
+      Uri.parse('${ApiConfig.baseUrl}/forum/posts'),
       headers: {'Content-Type': 'application/json'},
       body: json.encode({
         'idutilizador': currentUser?.id,
@@ -1387,7 +1388,7 @@ class _ForumPageState extends State<ForumPage> {
   Future<List<dynamic>> fetchTopicos() async {
     try {
       final response = await http.get(
-        Uri.parse('http://192.168.1.68:3000/forum/topicos'),
+        Uri.parse('${ApiConfig.baseUrl}/forum/topicos'),
       );
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
@@ -1434,7 +1435,7 @@ class _ForumPageState extends State<ForumPage> {
 
   Future<int> fetchNumeroRespostas(int idTopico) async {
     final response = await http.get(
-      Uri.parse('http://192.168.1.68:3000/respostas/$idTopico'),
+      Uri.parse('${ApiConfig.respostasUrl}/$idTopico'),
     );
     if (response.statusCode == 200) {
       final respostas = jsonDecode(response.body);
@@ -1445,7 +1446,7 @@ class _ForumPageState extends State<ForumPage> {
 
   Future<void> eliminarPost(int idPost) async {
     final response = await http.delete(
-      Uri.parse('http://192.168.1.68:3000/forum/posts/$idPost'),
+      Uri.parse('${ApiConfig.baseUrl}/forum/posts/$idPost'),
     );
     if (response.statusCode != 200) {
       throw Exception('Falha ao eliminar post');
@@ -1581,7 +1582,7 @@ class _ForumPageState extends State<ForumPage> {
 
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse('http://192.168.1.68:3000/forum/posts/com-ficheiro'),
+        Uri.parse('${ApiConfig.baseUrl}/forum/posts/com-ficheiro'),
       );
 
       // Adicionar campos de texto
@@ -1892,7 +1893,7 @@ class _ModalSugerirTopicoState extends State<ModalSugerirTopico> {
     try {
       print('🔄 Iniciando carregamento de categorias...');
       final response = await http.get(
-        Uri.parse('http://192.168.1.68:3000/forum-pedidos/categorias'),
+        Uri.parse('${ApiConfig.baseUrl}/forum-pedidos/categorias'),
         headers: {'Content-Type': 'application/json'},
       );
 
@@ -1936,7 +1937,7 @@ class _ModalSugerirTopicoState extends State<ModalSugerirTopico> {
 
     try {
       final response = await http.get(
-        Uri.parse('http://192.168.1.68:3000/forum-pedidos/areas/$categoriaId'),
+        Uri.parse('${ApiConfig.baseUrl}/forum-pedidos/areas/$categoriaId'),
         headers: {'Content-Type': 'application/json'},
       );
 
@@ -1990,7 +1991,7 @@ class _ModalSugerirTopicoState extends State<ModalSugerirTopico> {
       body['topico_sugerido'] = _topicoSugeridoController.text.trim();
 
       final response = await http.post(
-        Uri.parse('http://192.168.1.68:3000/forum-pedidos/pedidos'),
+        Uri.parse('${ApiConfig.baseUrl}/forum-pedidos/pedidos'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode(body),
       );

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../database/local_database.dart';
+import '../../config/api_config.dart';
 
 
 class FormInscricoesService {
@@ -80,7 +81,7 @@ class FormInscricoesService {
   /// Encontrar URL funcionando (reutilizar lógica do CursoService)
   static Future<String?> _encontrarUrlFuncionando() async {
     final urls = [
-      'http://192.168.1.68:3000',
+      '${ApiConfig.baseUrl}',
       'http://10.0.2.2:3000',
       'http://localhost:3000',
     ];

@@ -1,9 +1,10 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/projetos_model.dart';
+import '../../config/api_config.dart';
 
 class ProjetoService {
-  static const String baseUrl = 'http://192.168.1.68:3000/projetos';
+  static const String baseUrl = '${ApiConfig.baseUrl}/projetos';
 
   // Busca todos os projetos
   static Future<List<ProjetoModel>> fetchProjetos() async {
@@ -34,7 +35,7 @@ static Future<List<ProjetoModel>> fetchProjetosPorCurso(int idCurso, int userid)
   print("🧪 DEBUG fetchProjetosPorCurso: idCurso=$idCurso, userid=$userid");
 
   final response = await http.get(
-    Uri.parse('http://192.168.1.68:3000/projetos/curso/$idCurso/formando/$userid'),
+    Uri.parse('${ApiConfig.baseUrl}/projetos/curso/$idCurso/formando/$userid'),
   );
 
   print('🔵 RAW RESPONSE: ${response.body}'); // Adicione esta linha
@@ -54,7 +55,7 @@ static Future<List<ProjetoModel>> fetchProjetosPorCurso(int idCurso, int userid)
 
   // Busca submissões por curso e utilizador
   static Future<List<ProjetoSubmissaoModel>> fetchSubmissoesPorCursoEUtilizador(int cursoId, int utilizadorId) async {
-    final url = 'http://192.168.1.68:3000/projetos_submissoes?curso_id=$cursoId&utilizador_id=$utilizadorId';
+    final url = '${ApiConfig.baseUrl}/projetos_submissoes?curso_id=$cursoId&utilizador_id=$utilizadorId';
     final response = await http.get(Uri.parse(url));
 
     if (response.statusCode == 200) {

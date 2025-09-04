@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import 'dart:typed_data';
 import '../../widgets/notification_badge.dart';
+import '../../../config/api_config.dart';
 
 
 class PercursoFormativoPage extends StatefulWidget {
@@ -30,7 +31,7 @@ class _PercursoFormativoPageState extends State<PercursoFormativoPage> {
   Future<void> fetchPercurso() async {
     try {
       final response = await http.get(
-        Uri.parse('http://192.168.1.68:3000/percursoformativo/${widget.idUtilizador}')
+        Uri.parse('${ApiConfig.baseUrl}/percursoformativo/${widget.idUtilizador}')
       );
       print('Resposta status: ${response.statusCode}');
       print('Body: ${response.body}');
@@ -181,7 +182,7 @@ class _PercursoFormativoPageState extends State<PercursoFormativoPage> {
                                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                                 ),
                                                 onPressed: () async {
-                                                  final url = 'http://192.168.1.68:3000${curso['certificado']}';
+                                                  final url = '${ApiConfig.baseUrl}${curso['certificado']}';
                                                   try {
                                                     final response = await http.get(Uri.parse(url));
                                                     if (response.statusCode == 200) {
@@ -277,7 +278,7 @@ class _PercursoFormativoPageState extends State<PercursoFormativoPage> {
     
     // Se é um nome de arquivo, construir URL do servidor
     if (imagemString.contains('.') && !imagemString.contains(',')) {
-      final serverUrl = 'http://192.168.1.68:3000/uploads/$imagemString';
+      final serverUrl = '${ApiConfig.uploadsUrl}/$imagemString';
       print('🔗 Detectado como arquivo, tentando servidor: $serverUrl');
       return Image.network(
         serverUrl,
