@@ -309,16 +309,19 @@ app.get('/check-tables', async (req, res) => {
     
     const existingTables = tablesQuery[0].map(row => row.table_name);
     
-    // Lista das tabelas esperadas (baseada nos modelos)
+    // Lista das tabelas esperadas (baseada na imagem do pgAdmin - 51 tabelas)
     const expectedTables = [
-      'administra', 'administrador', 'analisa', 'areas', 'assincrono',
+      'administra', 'administrador', 'analisa', 'areas', 'assincrono', 'aulas',
       'avaliacoes', 'categorias', 'comentarios', 'conteudo', 'curriculopendente',
-      'cursos', 'cursospendentes', 'denuncia', 'disponibiliza', 'favoritos',
-      'formCurriculo', 'formInscricao', 'formador', 'formando', 'forum',
-      'gerirConteudo', 'gerirCurso', 'guardado', 'horariopessoal', 'horariosemanal',
-      'inscricaoCurso', 'likes_forum', 'material', 'notificacao', 'percursoformativo',
-      'permissoes', 'post', 'projetos', 'projetos_submissoes', 'recebe',
-      'resposta', 'roles_permissoes', 'sincronos', 'temConteudo', 'topicos', 'utilizador'
+      'cursos', 'cursos_recomendados', 'cursos_topicos', 'cursospendentes', 
+      'denuncia', 'denuncia_comentario', 'disponibiliza', 'favoritos',
+      'form_curriculo', 'form_inscricao', 'formador', 'formando', 'forum',
+      'gerir_conteudo', 'gerir_curso', 'guardados', 'horariopessoal', 
+      'horariosemanal', 'inscricao_curso', 'likes_forum', 'materiais_apoio',
+      'materiais_links', 'material', 'notificacao', 'notificacoes',
+      'pedidos_topicos', 'percursoformativo', 'permissoes', 'post', 'projetos',
+      'projetos_submissoes', 'quizzes', 'recebe', 'resposta', 'respostas_quiz',
+      'roles_permissoes', 'sincronos', 'tem_conteudo', 'topicos', 'utilizador'
     ];
     
     const missingTables = expectedTables.filter(table => !existingTables.includes(table));
@@ -343,6 +346,55 @@ app.get('/check-tables', async (req, res) => {
     res.status(500).json({
       status: 'error',
       message: 'Erro ao verificar tabelas',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Endpoint para forçar sincronização completa de TODAS as tabelas
+app.get('/force-sync-all-tables', async (req, res) => {
+  try {
+    console.log('🔄 Forçando sincronização completa de TODAS as tabelas...');
+    
+    // Desabilitar verificações de foreign key temporariamente
+    await sequelize.query('SET session_replication_role = replica;');
+    
+    // Sincronizar com força para criar TODAS as tabelas
+    await sequelize.sync({ 
+      force: false,  // Não apagar dados existentes
+      alter: true,   // Permitir alterações de estrutura
+      logging: console.log  // Ver todos os comandos SQL
+    });
+    
+    // Reabilitar verificações de foreign key
+    await sequelize.query('SET session_replication_role = DEFAULT;');
+    
+    // Verificar quantas tabelas foram criadas
+    const tablesQuery = await sequelize.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public' 
+      ORDER BY table_name;
+    `);
+    
+    const createdTables = tablesQuery[0].map(row => row.table_name);
+    
+    console.log(`✅ Sincronização completa! ${createdTables.length} tabelas disponíveis`);
+    
+    res.json({
+      status: 'success',
+      message: 'Sincronização completa realizada com sucesso!',
+      total_tables: createdTables.length,
+      tables: createdTables,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro na sincronização completa:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Erro na sincronização completa',
       error: error.message,
       timestamp: new Date().toISOString()
     });
