@@ -3798,35 +3798,185 @@ app.get('/clean-fake-data', async (req, res) => {
   }
 });
 
-// ENDPOINT PARA VERIFICAR PERMISSÕES REAIS VIA ROLES_PERMISSOES
-app.get('/real-user-permissions/:id', async (req, res) => {
+// INVESTIGAR O QUE EXISTE REALMENTE NA BD ORIGINAL
+app.get('/investigate-original-data', async (req, res) => {
+  try {
+    console.log('🔍 INVESTIGANDO DADOS ORIGINAIS DA BD...');
+    
+    const investigacao = {};
+    
+    // 1. VER TUDO NA TABELA PERMISSOES
+    try {
+      const [permissoesOriginais] = await sequelize.query(`SELECT * FROM permissoes ORDER BY id`);
+      investigacao.permissoes_originais = permissoesOriginais;
+    } catch (e) { investigacao.permissoes_originais = `Erro: ${e.message}`; }
+    
+    // 2. VER TUDO NA TABELA ROLES_PERMISSOES
+    try {
+      const [rolesOriginais] = await sequelize.query(`SELECT * FROM roles_permissoes ORDER BY id`);
+      investigacao.roles_permissoes_originais = rolesOriginais;
+    } catch (e) { investigacao.roles_permissoes_originais = `Erro: ${e.message}`; }
+    
+    // 3. VER ESTRUTURA DA TABELA ROLES_PERMISSOES
+    try {
+      const [estruturaRoles] = await sequelize.query(`
+        SELECT column_name, data_type, is_nullable 
+        FROM information_schema.columns 
+        WHERE table_name = 'roles_permissoes' 
+        ORDER BY ordinal_position
+      `);
+      investigacao.estrutura_roles_permissoes = estruturaRoles;
+    } catch (e) { investigacao.estrutura_roles_permissoes = `Erro: ${e.message}`; }
+    
+    // 4. VER QUE OUTRAS TABELAS PODEM TER PERMISSÕES
+    try {
+      const [tabelasPermissoes] = await sequelize.query(`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND (table_name LIKE '%permiss%' OR table_name LIKE '%role%' OR table_name LIKE '%auth%')
+        ORDER BY table_name
+      `);
+      investigacao.tabelas_relacionadas_permissoes = tabelasPermissoes.map(t => t.table_name);
+    } catch (e) { investigacao.tabelas_relacionadas_permissoes = `Erro: ${e.message}`; }
+    
+    // 5. VER SE EXISTEM DADOS DE UTILIZADORES COM ROLES
+    try {
+      const [utilizadorComRoles] = await sequelize.query(`
+        SELECT idutilizador, nome, tipo 
+        FROM utilizador 
+        WHERE tipo IN ('formando', 'formador', 'administrador')
+        ORDER BY idutilizador
+        LIMIT 10
+      `);
+      investigacao.utilizadores_com_tipos = utilizadorComRoles;
+    } catch (e) { investigacao.utilizadores_com_tipos = `Erro: ${e.message}`; }
+    
+    // 6. PROCURAR TABELAS QUE PODEM CONTROLAR ACESSO
+    try {
+      const [tabelasAcesso] = await sequelize.query(`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND (table_name LIKE '%user%' OR table_name LIKE '%utilizador%' OR table_name LIKE '%acesso%')
+        ORDER BY table_name
+      `);
+      investigacao.tabelas_acesso = tabelasAcesso.map(t => t.table_name);
+    } catch (e) { investigacao.tabelas_acesso = `Erro: ${e.message}`; }
+    
+    // 7. VER SE A APP USA SISTEMA SIMPLES (SÓ TIPO DE USER)
+    try {
+      const [tiposUser] = await sequelize.query(`
+        SELECT tipo, COUNT(*) as total 
+        FROM utilizador 
+        GROUP BY tipo 
+        ORDER BY tipo
+      `);
+      investigacao.distribuicao_tipos_user = tiposUser;
+    } catch (e) { investigacao.distribuicao_tipos_user = `Erro: ${e.message}`; }
+    
+    res.json({
+      status: '🔍 INVESTIGAÇÃO DA BD ORIGINAL',
+      message: 'Dados que realmente existem na tua base de dados',
+      investigacao_completa: investigacao,
+      conclusoes: {
+        permissoes_existem: Array.isArray(investigacao.permissoes_originais) ? investigacao.permissoes_originais.length > 0 : false,
+        roles_permissoes_existem: Array.isArray(investigacao.roles_permissoes_originais) ? investigacao.roles_permissoes_originais.length > 0 : false,
+        sistema_pode_ser_simples: 'App pode usar apenas o campo "tipo" do utilizador para controlar acesso'
+      },
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro na investigação:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Erro ao investigar dados originais',
+      error: error.message
+    });
+  }
+});
+
+// ENDPOINT SIMPLES QUE USA APENAS O TIPO DO USER (SISTEMA REAL)
+app.get('/simple-user-access/:id', async (req, res) => {
   try {
     const userId = req.params.id;
     
     // Buscar tipo do utilizador
-    const [user] = await sequelize.query(`SELECT tipo FROM utilizador WHERE idutilizador = ${userId}`);
-    const userType = user[0]?.tipo;
+    const [user] = await sequelize.query(`SELECT idutilizador, nome, tipo FROM utilizador WHERE idutilizador = ${userId}`);
     
-    // Buscar permissões reais via roles_permissoes
-    const [permissoes] = await sequelize.query(`
-      SELECT p.*, rp.id_role
-      FROM roles_permissoes rp
-      JOIN permissoes p ON rp.id_permissao = p.id
-      WHERE rp.id_role = (
-        CASE 
-          WHEN '${userType}' = 'formando' THEN 1
-          WHEN '${userType}' = 'formador' THEN 2  
-          WHEN '${userType}' = 'administrador' THEN 3
-          ELSE 1
-        END
-      )
-      ORDER BY p.id
-    `);
+    if (!user[0]) {
+      return res.status(404).json({ error: 'Utilizador não encontrado' });
+    }
+    
+    const utilizador = user[0];
+    
+    // Sistema simples baseado no tipo
+    let permissoes = {};
+    
+    switch (utilizador.tipo) {
+      case 'formando':
+        permissoes = {
+          can_view_courses: true,
+          can_enroll_courses: true,
+          can_view_forum: true,
+          can_participate_forum: true,
+          can_edit_profile: true,
+          can_create_posts: false,      // Formandos normalmente não criam posts
+          can_reply_posts: true,
+          can_manage_content: false,
+          can_manage_users: false
+        };
+        break;
+        
+      case 'formador':
+        permissoes = {
+          can_view_courses: true,
+          can_enroll_courses: true,
+          can_view_forum: true,
+          can_participate_forum: true,
+          can_edit_profile: true,
+          can_create_posts: true,
+          can_reply_posts: true,
+          can_manage_content: true,     // Formadores gerem conteúdo
+          can_manage_users: false
+        };
+        break;
+        
+      case 'administrador':
+        permissoes = {
+          can_view_courses: true,
+          can_enroll_courses: true,
+          can_view_forum: true,
+          can_participate_forum: true,
+          can_edit_profile: true,
+          can_create_posts: true,
+          can_reply_posts: true,
+          can_manage_content: true,
+          can_manage_users: true        // Só admins gerem users
+        };
+        break;
+        
+      default:
+        permissoes = {
+          can_view_courses: false,
+          can_enroll_courses: false,
+          can_view_forum: false,
+          can_participate_forum: false,
+          can_edit_profile: false,
+          can_create_posts: false,
+          can_reply_posts: false,
+          can_manage_content: false,
+          can_manage_users: false
+        };
+    }
     
     res.json({
       user_id: userId,
-      user_type: userType,
-      real_permissions: permissoes,
+      user_info: utilizador,
+      access_type: 'simple_role_based',
+      permissions: permissoes,
+      message: `Acesso baseado no tipo: ${utilizador.tipo}`,
       timestamp: new Date().toISOString()
     });
     
