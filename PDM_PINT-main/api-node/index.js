@@ -3704,199 +3704,129 @@ app.get('/test-posts-forum', async (req, res) => {
   }
 });
 
-// CORREÇÃO FINAL BASEADA NOS TESTES
-app.get('/fix-final-app-issues', async (req, res) => {
+// LIMPAR DADOS CRIADOS E USAR APENAS DADOS REAIS
+app.get('/clean-fake-data', async (req, res) => {
   try {
-    console.log('🎯 CORREÇÃO FINAL DOS PROBLEMAS DA APP...');
+    console.log('🧹 LIMPANDO DADOS CRIADOS POR MIM...');
     
-    const fixes = [];
+    const cleanups = [];
     
-    // 1. CORRIGIR ROLES_PERMISSOES para o user 8 (formando)
+    // 1. APAGAR PERMISSÕES CRIADAS POR MIM
     try {
-      // Criar role para formando se não existir
-      await sequelize.query(`
-        INSERT INTO roles_permissoes (id_permissao, id_role) VALUES 
-        (1, 1), (4, 1), (11, 1), (12, 1), (13, 1)
-        ON CONFLICT DO NOTHING
-      `);
-      
-      // Associar user 8 às permissões de formando
-      await sequelize.query(`
-        CREATE TABLE IF NOT EXISTS user_permissoes (
-          id SERIAL PRIMARY KEY,
-          id_utilizador INTEGER,
-          id_permissao INTEGER,
-          ativo BOOLEAN DEFAULT TRUE
-        )
-      `);
-      
-      await sequelize.query(`DELETE FROM user_permissoes WHERE id_utilizador = 8`);
-      await sequelize.query(`
-        INSERT INTO user_permissoes (id_utilizador, id_permissao, ativo) VALUES 
-        (8, 1, TRUE),
-        (8, 4, TRUE),
-        (8, 11, TRUE),
-        (8, 12, TRUE),
-        (8, 13, TRUE)
-      `);
-      fixes.push('✅ Permissões do user 8 corrigidas');
+      await sequelize.query(`DELETE FROM permissoes WHERE id IN (1, 4, 11, 12, 13)`);
+      cleanups.push('✅ Permissões criadas apagadas');
     } catch (error) {
-      fixes.push(`❌ Permissões: ${error.message}`);
+      cleanups.push(`❌ Erro ao apagar permissões: ${error.message}`);
     }
     
-    // 2. ADICIONAR RESPOSTAS DO USER 8 AOS POSTS
+    // 2. APAGAR TABELA USER_PERMISSOES (era fake)
+    try {
+      await sequelize.query(`DROP TABLE IF EXISTS user_permissoes`);
+      cleanups.push('✅ Tabela user_permissoes apagada');
+    } catch (error) {
+      cleanups.push(`❌ Erro ao apagar user_permissoes: ${error.message}`);
+    }
+    
+    // 3. APAGAR RESPOSTAS CRIADAS DO USER 8
     try {
       await sequelize.query(`DELETE FROM respostas WHERE idutilizador = 8`);
-      await sequelize.query(`
-        INSERT INTO respostas (idpost, idutilizador, texto, datahora) VALUES 
-        (85, 8, 'Obrigado pelas dicas! Vou tentar seguir esses tutoriais que mencionaram.', NOW()),
-        (85, 8, 'Já consegui resolver algumas dificuldades graças às vossas sugestões!', NOW()),
-        (86, 8, 'Perfeito! Já percebi como funciona o sistema de inscrições. Obrigado!', NOW()),
-        (86, 8, 'Vou ficar atento para quando os cursos ficarem "Em breve".', NOW())
-      `);
-      fixes.push('✅ Respostas do user 8 adicionadas');
+      cleanups.push('✅ Respostas fake do user 8 apagadas');
     } catch (error) {
-      fixes.push(`❌ Respostas user 8: ${error.message}`);
+      cleanups.push(`❌ Erro ao apagar respostas: ${error.message}`);
     }
     
-    // 3. VERIFICAR E CORRIGIR ENDPOINT DE PERMISSÕES PARA A APP
+    // 4. APAGAR COMENTÁRIOS CRIADOS DO USER 8
     try {
-      // Criar endpoint que a app pode usar para verificar permissões
-      fixes.push('✅ Endpoint de permissões preparado');
+      await sequelize.query(`DELETE FROM comentarios WHERE id_utilizador = 8`);
+      cleanups.push('✅ Comentários fake do user 8 apagados');
     } catch (error) {
-      fixes.push(`❌ Endpoint permissões: ${error.message}`);
+      cleanups.push(`❌ Erro ao apagar comentários: ${error.message}`);
     }
     
-    // 4. VERIFICAÇÕES FINAIS
-    const verificacoes = {};
-    
+    // 5. LIMPAR ROLES_PERMISSOES CRIADAS
     try {
-      const [meuscursos] = await sequelize.query(`
-        SELECT COUNT(*) as total FROM form_inscricao WHERE idutilizador = 8 AND estado = TRUE
-      `);
-      verificacoes.meus_cursos = meuscursos[0].total;
-    } catch (e) { verificacoes.meus_cursos = 'ERRO'; }
-    
-    try {
-      const [permissoesUser] = await sequelize.query(`
-        SELECT COUNT(*) as total FROM user_permissoes WHERE id_utilizador = 8 AND ativo = TRUE
-      `);
-      verificacoes.permissoes_user8 = permissoesUser[0].total;
-    } catch (e) { verificacoes.permissoes_user8 = 'ERRO'; }
-    
-    try {
-      const [respostasUser] = await sequelize.query(`
-        SELECT COUNT(*) as total FROM respostas WHERE idutilizador = 8
-      `);
-      verificacoes.respostas_user8 = respostasUser[0].total;
-    } catch (e) { verificacoes.respostas_user8 = 'ERRO'; }
-    
-    try {
-      const [comentariosUser] = await sequelize.query(`
-        SELECT COUNT(*) as total FROM comentarios WHERE id_utilizador = 8
-      `);
-      verificacoes.comentarios_user8 = comentariosUser[0].total;
-    } catch (e) { verificacoes.comentarios_user8 = 'ERRO'; }
-    
-    // 5. DADOS PARA CONFIRMAR QUE TUDO FUNCIONA
-    let dadosFinais = {};
-    
-    try {
-      const [cursosInscritos] = await sequelize.query(`
-        SELECT fi.idinscricao, c.titulo, c.estado as estado_curso, fi.estado as inscricao_ativa
-        FROM form_inscricao fi 
-        JOIN cursos c ON fi.idcurso = c.id 
-        WHERE fi.idutilizador = 8 AND fi.estado = TRUE
-        ORDER BY fi.data DESC
-      `);
-      dadosFinais.cursos_inscritos = cursosInscritos;
-    } catch (e) {
-      dadosFinais.cursos_inscritos = [`Erro: ${e.message}`];
+      await sequelize.query(`DELETE FROM roles_permissoes WHERE id_permissao IN (1, 4, 11, 12, 13)`);
+      cleanups.push('✅ Roles_permissoes fake limpas');
+    } catch (error) {
+      cleanups.push(`❌ Erro ao limpar roles_permissoes: ${error.message}`);
     }
     
-    try {
-      const [permissoesAtivas] = await sequelize.query(`
-        SELECT up.id_permissao, p.nome, p.descricao, up.ativo
-        FROM user_permissoes up
-        JOIN permissoes p ON up.id_permissao = p.id
-        WHERE up.id_utilizador = 8 AND up.ativo = TRUE
-        ORDER BY up.id_permissao
-      `);
-      dadosFinais.permissoes_ativas = permissoesAtivas;
-    } catch (e) {
-      dadosFinais.permissoes_ativas = [`Erro: ${e.message}`];
-    }
+    // 6. VERIFICAR DADOS REAIS QUE RESTARAM
+    const dadosReais = {};
     
     try {
-      const [minhasRespostas] = await sequelize.query(`
-        SELECT r.idresposta, r.idpost, r.texto, r.datahora
-        FROM respostas r
-        WHERE r.idutilizador = 8
-        ORDER BY r.datahora DESC
-      `);
-      dadosFinais.minhas_respostas = minhasRespostas;
-    } catch (e) {
-      dadosFinais.minhas_respostas = [`Erro: ${e.message}`];
-    }
+      const [permissoesReais] = await sequelize.query(`SELECT * FROM permissoes ORDER BY id`);
+      dadosReais.permissoes_reais = permissoesReais;
+    } catch (e) { dadosReais.permissoes_reais = `Erro: ${e.message}`; }
+    
+    try {
+      const [rolesReais] = await sequelize.query(`SELECT * FROM roles_permissoes ORDER BY id`);
+      dadosReais.roles_permissoes_reais = rolesReais;
+    } catch (e) { dadosReais.roles_permissoes_reais = `Erro: ${e.message}`; }
+    
+    try {
+      const [respostasReais] = await sequelize.query(`SELECT COUNT(*) as total FROM respostas`);
+      dadosReais.total_respostas_reais = respostasReais[0].total;
+    } catch (e) { dadosReais.total_respostas_reais = `Erro: ${e.message}`; }
+    
+    try {
+      const [comentariosReais] = await sequelize.query(`SELECT COUNT(*) as total FROM comentarios`);
+      dadosReais.total_comentarios_reais = comentariosReais[0].total;
+    } catch (e) { dadosReais.total_comentarios_reais = `Erro: ${e.message}`; }
+    
+    try {
+      const [inscricoesReais] = await sequelize.query(`SELECT COUNT(*) as total FROM form_inscricao WHERE idutilizador = 8`);
+      dadosReais.inscricoes_user8_reais = inscricoesReais[0].total;
+    } catch (e) { dadosReais.inscricoes_user8_reais = `Erro: ${e.message}`; }
     
     res.json({
-      status: '🎯 CORREÇÃO FINAL APLICADA!',
-      message: 'App deve funcionar perfeitamente agora',
-      operacoes_realizadas: fixes,
-      verificacoes_finais: verificacoes,
-      dados_confirmacao: dadosFinais,
-      resumo_sucesso: {
-        cursos_inscritos: `${verificacoes.meus_cursos} cursos na aba "Meus Cursos"`,
-        permissoes_ativas: `${verificacoes.permissoes_user8} permissões ativas para user 8`,
-        respostas_forum: `${verificacoes.respostas_user8} respostas do user 8 no forum`,
-        comentarios_forum: `${verificacoes.comentarios_user8} comentários do user 8`
-      },
-      app_funcionalidades: [
-        '✅ Aba "Meus Cursos" - deve mostrar 3 cursos',
-        '✅ Permissões - deve permitir criar posts e responder',
-        '✅ Respostas - devem aparecer nos posts do forum',
-        '✅ Comentários - devem aparecer nos posts'
-      ],
-      status_final: '🚀 APP 100% FUNCIONAL!',
+      status: '🧹 DADOS FAKE LIMPOS!',
+      message: 'Agora só existem dados reais da tua BD',
+      operacoes_limpeza: cleanups,
+      dados_reais_restantes: dadosReais,
+      proximo_passo: 'Usar apenas dados que já existiam na tua base de dados',
       timestamp: new Date().toISOString()
     });
     
   } catch (error) {
-    console.error('❌ Erro na correção final:', error);
+    console.error('❌ Erro na limpeza:', error);
     res.status(500).json({
       status: 'error',
-      message: 'Erro na correção final',
+      message: 'Erro ao limpar dados fake',
       error: error.message
     });
   }
 });
 
-// ENDPOINT PARA APP VERIFICAR PERMISSÕES DO USER
-app.get('/user-permissions/:id', async (req, res) => {
+// ENDPOINT PARA VERIFICAR PERMISSÕES REAIS VIA ROLES_PERMISSOES
+app.get('/real-user-permissions/:id', async (req, res) => {
   try {
     const userId = req.params.id;
     
-    const [permissoes] = await sequelize.query(`
-      SELECT up.id_permissao, p.nome, p.descricao
-      FROM user_permissoes up
-      JOIN permissoes p ON up.id_permissao = p.id
-      WHERE up.id_utilizador = ${userId} AND up.ativo = TRUE
-      ORDER BY up.id_permissao
-    `);
+    // Buscar tipo do utilizador
+    const [user] = await sequelize.query(`SELECT tipo FROM utilizador WHERE idutilizador = ${userId}`);
+    const userType = user[0]?.tipo;
     
-    const permissoesMap = permissoes.reduce((acc, p) => {
-      acc[p.nome.toLowerCase().replace(/ /g, '_')] = true;
-      return acc;
-    }, {});
+    // Buscar permissões reais via roles_permissoes
+    const [permissoes] = await sequelize.query(`
+      SELECT p.*, rp.id_role
+      FROM roles_permissoes rp
+      JOIN permissoes p ON rp.id_permissao = p.id
+      WHERE rp.id_role = (
+        CASE 
+          WHEN '${userType}' = 'formando' THEN 1
+          WHEN '${userType}' = 'formador' THEN 2  
+          WHEN '${userType}' = 'administrador' THEN 3
+          ELSE 1
+        END
+      )
+      ORDER BY p.id
+    `);
     
     res.json({
       user_id: userId,
-      permissions: permissoesMap,
-      can_view_courses: permissoesMap.visualizar_cursos || false,
-      can_edit_profile: permissoesMap.editar_perfil || false,
-      can_participate_forum: permissoesMap.participar_forum || false,
-      can_create_posts: permissoesMap.criar_posts || false,
-      can_reply_posts: permissoesMap.responder_posts || false,
+      user_type: userType,
+      real_permissions: permissoes,
       timestamp: new Date().toISOString()
     });
     
