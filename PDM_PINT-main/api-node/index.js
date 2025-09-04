@@ -250,23 +250,34 @@ app.get('/insert-test-data', async (req, res) => {
   try {
     console.log('🔄 Inserindo dados de teste...');
     
-    // Inserir utilizador de teste
-    await sequelize.query(`
-      INSERT INTO "public"."utilizador" 
-      (nome, email, palavrapasse, tipo, datanascimento, telemovel, morada, codigopostal, ultimoacesso, pontos, cidade, pais, estado, temquealterarpassword)
-      VALUES 
-      ('Utilizador Teste', 'softskillsformando@gmail.com', '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'formando', '1990-01-01', '123456789', 'Rua Teste', '1234-567', NOW(), 0, 'Lisboa', 'Portugal', 'ativo', false)
-      ON CONFLICT (email) DO NOTHING;
+    // Verificar se utilizador já existe
+    const existingUser = await sequelize.query(`
+      SELECT * FROM "public"."utilizador" WHERE email = 'softskillsformando@gmail.com'
     `);
     
-    // Inserir curso de teste
-    await sequelize.query(`
-      INSERT INTO "public"."cursos" 
-      (titulo, descricao, tema, data_inicio, data_fim, tipo, estado, pontos)
-      VALUES 
-      ('Curso de Teste', 'Descrição do curso de teste', 'Soft Skills', NOW(), NOW() + INTERVAL '30 days', 'online', 'ativo', 100)
-      ON CONFLICT DO NOTHING;
+    if (existingUser[0].length === 0) {
+      // Inserir utilizador de teste
+      await sequelize.query(`
+        INSERT INTO "public"."utilizador" 
+        (nome, email, palavrapasse, tipo, datanascimento, telemovel, morada, codigopostal, ultimoacesso, pontos, cidade, pais, estado, temquealterarpassword)
+        VALUES 
+        ('Utilizador Teste', 'softskillsformando@gmail.com', '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'formando', '1990-01-01', '123456789', 'Rua Teste', '1234-567', NOW(), 0, 'Lisboa', 'Portugal', 'ativo', false);
+      `);
+    }
+    
+    // Inserir curso de teste se não existir
+    const existingCourse = await sequelize.query(`
+      SELECT * FROM "public"."cursos" WHERE titulo = 'Curso de Teste'
     `);
+    
+    if (existingCourse[0].length === 0) {
+      await sequelize.query(`
+        INSERT INTO "public"."cursos" 
+        (titulo, descricao, tema, data_inicio, data_fim, tipo, estado, pontos)
+        VALUES 
+        ('Curso de Teste', 'Descrição do curso de teste', 'Soft Skills', NOW(), NOW() + INTERVAL '30 days', 'online', 'ativo', 100);
+      `);
+    }
     
     console.log('✅ Dados de teste inseridos com sucesso!');
     res.json({
