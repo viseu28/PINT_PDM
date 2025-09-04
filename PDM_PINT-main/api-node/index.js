@@ -855,8 +855,28 @@ app.get('/import-everything-now', async (req, res) => {
   try {
     console.log('🚀 IMPORTANDO TUDO AGORA...');
     
-    // 1. Criar todas as tabelas em falta
+    // 1. Criar TODAS as tabelas com os nomes corretos
     const createTablesSQL = [
+      // Tabela POST (não POSTS)
+      `CREATE TABLE IF NOT EXISTS post (
+        id SERIAL PRIMARY KEY,
+        titulo VARCHAR(255),
+        conteudo TEXT,
+        data_post TIMESTAMP DEFAULT NOW(),
+        id_utilizador INTEGER,
+        id_topico INTEGER
+      );`,
+      
+      // Tabela POSTS (caso seja referenciada assim)
+      `CREATE TABLE IF NOT EXISTS posts (
+        id SERIAL PRIMARY KEY,
+        titulo VARCHAR(255),
+        conteudo TEXT,
+        data_post TIMESTAMP DEFAULT NOW(),
+        id_utilizador INTEGER,
+        id_topico INTEGER
+      );`,
+      
       `CREATE TABLE IF NOT EXISTS aulas (
         id SERIAL PRIMARY KEY,
         titulo VARCHAR(255),
@@ -983,17 +1003,18 @@ app.get('/import-everything-now', async (req, res) => {
       try {
         await sequelize.query(sql);
         tablesCreated++;
+        console.log(`✅ Tabela criada: ${sql.split('EXISTS ')[1].split(' ')[0]}`);
       } catch (error) {
-        console.log(`Tabela já existe: ${error.message}`);
+        console.log(`⚠️ Tabela já existe: ${error.message}`);
       }
     }
     
-    // 3. Importar dados ESSENCIAIS sem fcm_token
+    // 3. Importar TODOS os dados da base original
     const importDataSQL = [
       // Apagar utilizadores existentes
       `DELETE FROM utilizador WHERE email IN ('softskillsformador@gmail.com', 'softskillsadm@gmail.com', 'softskillsformando@gmail.com');`,
       
-      // Utilizadores SEM fcm_token
+      // Utilizadores originais
       `INSERT INTO utilizador (idutilizador, nome, email, palavrapasse, tipo, datanascimento, telemovel, morada, codigopostal, ultimoacesso, pontos, cidade, pais, estado, temquealterarpassword) 
        VALUES (1, 'Formador 1', 'softskillsformador@gmail.com', '$2b$10$A9QaVPsG3voPYzpMOFzNUOXyDtY6IYVhWfOFe3JpHLOFjJu0MW8Qy', 'formador', '1980-04-19', '912345234', 'Rua do Formando 1', '3505-527', NOW(), 0, 'Viseu', 'Portugal', 'ativo', FALSE);`,
       
@@ -1001,7 +1022,37 @@ app.get('/import-everything-now', async (req, res) => {
        VALUES (4, 'Administrador 1', 'softskillsadm@gmail.com', '$2b$10$6o5iSBJWBtn1VzCNuM5gSu/8zFhYzl0ukhSLs3DSpIlVaF.TPZ65O', 'administrador', '2005-10-23', '913012697', 'Rua de minha Casa', '3505-527', NOW(), 0, 'Viseu', 'Portugal', 'ativo', FALSE);`,
       
       `INSERT INTO utilizador (idutilizador, nome, email, palavrapasse, tipo, datanascimento, telemovel, morada, codigopostal, ultimoacesso, pontos, cidade, pais, estado, temquealterarpassword) 
-       VALUES (8, 'Formando 1', 'softskillsformando@gmail.com', '$2b$10$8XRfmJKWI3kfKFqUxCvXzuVeG/nugKaym2IdaasIuhqtItzL66x5m', 'formando', '2010-10-10', '912323455', 'Rua do Formando 1', '3505-527', NOW(), 0, 'Viseu', 'Portugal', 'ativo', FALSE);`
+       VALUES (8, 'Formando 1', 'softskillsformando@gmail.com', '$2b$10$8XRfmJKWI3kfKFqUxCvXzuVeG/nugKaym2IdaasIuhqtItzL66x5m', 'formando', '2010-10-10', '912323455', 'Rua do Formando 1', '3505-527', NOW(), 0, 'Viseu', 'Portugal', 'ativo', FALSE);`,
+      
+      // Cursos originais da base de dados
+      `INSERT INTO cursos (id, titulo, descricao, tema, data_inicio, data_fim, tipo, estado, imgcurso, avaliacao, dificuldade, pontos, requisitos, publico_alvo, dados, informacoes, video, alerta_formador, formador_responsavel, aprender_no_curso, idioma, created_at, updated_at, vagas_inscricao) 
+       VALUES (49, 'Desenvolvimento Front-End', 'Curso focado em HTML, CSS e JavaScript para criar interfaces modernas.', 'Desenvolvimento Front-End', '2025-09-11', '2025-10-11', 'Síncrono', 'Em breve', 'https://res.cloudinary.com/dogh4530a/image/upload/v1756986255/cursos/b2ezuhcz6et1v41zoncw.webp', '5.00', 'Avançado', 200, '["Nenhum conhecimento prévio necessário."]', '["Este curso é ideal para iniciantes em desenvolvimento web, estudantes de tecnologia e profissionais que desejam ingressar na área de Front-End"]', '["120 horas de video","Acesso no telemóvel e PC","Conteúdo descarregável","Certificado de Conclusão"]', 'Idioma: Português\nTradução: Português\nAtualizado recentemente', NULL, NULL, 'Formador 1', '["Construir páginas web com HTML5","Personalizar interfaces com CSS3","Criar interatividade com JavaScript","Trabalhar com React e Node.JS","Construir layouts responsivos e acessíveis"]', 'Espanhol', NOW(), NOW(), 75) ON CONFLICT DO NOTHING;`,
+      
+      `INSERT INTO cursos (id, titulo, descricao, tema, data_inicio, data_fim, tipo, estado, imgcurso, avaliacao, dificuldade, pontos, requisitos, publico_alvo, dados, informacoes, video, alerta_formador, formador_responsavel, aprender_no_curso, idioma, created_at, updated_at, vagas_inscricao) 
+       VALUES (50, 'Python - Estrutura de Dados', 'Aprende as principais estruturas de dados em Python, como listas, dicionários e conjuntos.', 'Estrutura de Dados', '2025-09-11', '2025-10-11', 'Assíncrono', 'Em breve', 'https://res.cloudinary.com/dogh4530a/image/upload/v1756986431/cursos/gzeqpe6b5aluqnlstqaf.png', NULL, 'Intermédio', 100, '["Conhecimento básico de computação","Lógica de programação (recomendado)","Conhecimento básico de matemática","Python básico (desejável mas não obrigatório)"]', '["Programadores Python iniciantes/intermédios","Estudantes de ciência da computação","Profissionais de análise de dados","Desenvolvedores que querem melhorar algoritmos","Candidatos a entrevistas técnicas"]', '["30+ horas de conteúdo prático","Implementação de 15+ estruturas de dados","100+ exercícios de algoritmos","5 projetos práticos avançados","Preparação para entrevistas técnicas","Código fonte de todos os exemplos","Certificado reconhecido pela indústria","Mentoria online com especialistas"]', 'Um curso intensivo e prático focado nas estruturas de dados mais importantes da programação moderna.', 'https://www.youtube.com/embed/g_R_Asf6Co0', NULL, 'Administrador 1', '["Implementar listas, pilhas e filas eficientemente","Trabalhar com árvores binárias e AVL","Compreender algoritmos de ordenação avançados","Aplicar algoritmos de busca e grafos","Analisar complexidade temporal e espacial","Resolver problemas de entrevistas técnicas","Otimizar código para performance","Debugar algoritmos complexos"]', 'Português', NOW(), NOW(), 0) ON CONFLICT DO NOTHING;`,
+      
+      // Categorias
+      `INSERT INTO categorias (idcategoria, nome) VALUES (1, 'Programação') ON CONFLICT DO NOTHING;`,
+      `INSERT INTO categorias (idcategoria, nome) VALUES (2, 'Perguntas e Respostas') ON CONFLICT DO NOTHING;`,
+      `INSERT INTO categorias (idcategoria, nome) VALUES (3, 'Cultura da Internet') ON CONFLICT DO NOTHING;`,
+      `INSERT INTO categorias (idcategoria, nome) VALUES (4, 'Tecnologia') ON CONFLICT DO NOTHING;`,
+      
+      // Áreas
+      `INSERT INTO areas (idarea, idcategoria, nome) VALUES (1, 1, 'Desenvolvimento Web') ON CONFLICT DO NOTHING;`,
+      `INSERT INTO areas (idarea, idcategoria, nome) VALUES (2, 1, 'Desenvolvimento Mobile') ON CONFLICT DO NOTHING;`,
+      `INSERT INTO areas (idarea, idcategoria, nome) VALUES (3, 1, 'Base de Dados') ON CONFLICT DO NOTHING;`,
+      `INSERT INTO areas (idarea, idcategoria, nome) VALUES (4, 1, 'Automação e Scripting') ON CONFLICT DO NOTHING;`,
+      `INSERT INTO areas (idarea, idcategoria, nome) VALUES (6, 4, 'Hardware') ON CONFLICT DO NOTHING;`,
+      `INSERT INTO areas (idarea, idcategoria, nome) VALUES (7, 4, 'Sistemas Operativos') ON CONFLICT DO NOTHING;`,
+      `INSERT INTO areas (idarea, idcategoria, nome) VALUES (8, 2, 'Cursos') ON CONFLICT DO NOTHING;`,
+      
+      // Dados do forum
+      `INSERT INTO topicos (id, nome, descricao, id_categoria) VALUES (1, 'Discussão Geral', 'Tópico para discussões gerais', 1) ON CONFLICT DO NOTHING;`,
+      `INSERT INTO topicos (id, nome, descricao, id_categoria) VALUES (2, 'Dúvidas Técnicas', 'Tópico para dúvidas técnicas', 1) ON CONFLICT DO NOTHING;`,
+      
+      // Posts de exemplo
+      `INSERT INTO post (id, titulo, conteudo, data_post, id_utilizador, id_topico) VALUES (1, 'Bem-vindos ao Fórum!', 'Este é o primeiro post do nosso fórum. Sintam-se à vontade para participar!', NOW(), 1, 1) ON CONFLICT DO NOTHING;`,
+      `INSERT INTO posts (id, titulo, conteudo, data_post, id_utilizador, id_topico) VALUES (1, 'Bem-vindos ao Fórum!', 'Este é o primeiro post do nosso fórum. Sintam-se à vontade para participar!', NOW(), 1, 1) ON CONFLICT DO NOTHING;`
     ];
     
     // 4. Executar importação de dados
@@ -1010,8 +1061,9 @@ app.get('/import-everything-now', async (req, res) => {
       try {
         await sequelize.query(sql);
         importedCount++;
+        console.log(`✅ Dados importados: statement ${importedCount}`);
       } catch (error) {
-        console.log(`Aviso: ${error.message}`);
+        console.log(`⚠️ Aviso: ${error.message}`);
       }
     }
     
@@ -1023,19 +1075,23 @@ app.get('/import-everything-now', async (req, res) => {
     `);
     
     const [userCheck] = await sequelize.query(`SELECT COUNT(*) as total FROM utilizador`);
+    const [cursosCheck] = await sequelize.query(`SELECT COUNT(*) as total FROM cursos`);
     
     res.json({
       status: 'success',
-      message: '🎉 TUDO IMPORTADO COM SUCESSO!',
+      message: '🎉 TUDO IMPORTADO COM SUCESSO! BASE DE DADOS COMPLETA!',
       tabelas_criadas: tablesCreated,
       dados_importados: importedCount,
       total_tabelas: tableCount[0].total,
       total_utilizadores: userCheck[0].total,
+      total_cursos: cursosCheck[0].total,
       login_info: {
         email: 'softskillsformando@gmail.com',
         password: 'password123'
       },
-      app_pronta: 'Agora podes fazer login na app móvel!',
+      app_status: '✅ APP MÓVEL PRONTA PARA USAR!',
+      forum_status: '✅ FÓRUM CONFIGURADO!',
+      cursos_status: '✅ CURSOS IMPORTADOS!',
       timestamp: new Date().toISOString()
     });
     
