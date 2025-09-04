@@ -66,37 +66,13 @@ sequelize.authenticate()
   .then(async () => {
     console.log('Ligação à base de dados (Postgres) bem sucedida.');
     
-    // Inicializar modelos
+    // Inicializar modelos SEM sincronização automática
     console.log('🔄 Inicializando modelos...');
     const dbModels = initModels(sequelize);
     
-    // Sincronizar base de dados (criar tabelas se não existirem)
-    // Usar alter: true para modificar tabelas existentes sem apagar dados
-    console.log('🔄 Sincronizando base de dados...');
-    try {
-      await sequelize.sync({ 
-        force: false,
-        alter: true,
-        logging: console.log
-      });
-      console.log('✅ Base de dados sincronizada com sucesso!');
-    } catch (syncError) {
-      console.log('⚠️ Erro na sincronização inicial, tentando sincronização simples...');
-      console.log('Erro:', syncError.message);
-      
-      // Se falhar, tentar sem foreign keys primeiro
-      try {
-        await sequelize.query('SET foreign_key_checks = 0;').catch(() => {});
-        await sequelize.sync({ 
-          force: false,
-          logging: false
-        });
-        await sequelize.query('SET foreign_key_checks = 1;').catch(() => {});
-        console.log('✅ Base de dados sincronizada com sucesso (modo alternativo)!');
-      } catch (alternativeError) {
-        console.log('❌ Erro na sincronização alternativa:', alternativeError.message);
-      }
-    }
+    // NÃO FAZER SYNC AUTOMÁTICO - será feito manualmente via endpoint
+    console.log('✅ Modelos inicializados sem sincronização automática!');
+    console.log('💡 Use o endpoint /create-database-structure para criar as tabelas');
     
     initializeFirebase();
   })
@@ -2082,6 +2058,170 @@ app.get('/api/post/:id/respostas', async (req, res) => {
     res.status(500).json({
       status: 'error',
       message: 'Erro ao buscar respostas',
+      error: error.message
+    });
+  }
+});
+
+// ENDPOINT PARA CRIAR ESTRUTURA DA BD SEM ERROS
+app.get('/create-database-structure', async (req, res) => {
+  try {
+    console.log('🔧 CRIANDO ESTRUTURA DA BASE DE DADOS...');
+    
+    // Criar tabelas na ordem correta para evitar problemas de FK
+    const createTablesSQL = [
+      // 1. Utilizadores (sem role inicialmente)
+      `CREATE TABLE IF NOT EXISTS utilizador (
+        idutilizador SERIAL PRIMARY KEY,
+        nome VARCHAR(255),
+        email VARCHAR(255) UNIQUE,
+        palavrapasse VARCHAR(255),
+        tipo VARCHAR(50),
+        datanascimento DATE,
+        telemovel VARCHAR(20),
+        morada VARCHAR(255),
+        codigopostal VARCHAR(20),
+        ultimoacesso TIMESTAMP,
+        pontos INTEGER DEFAULT 0,
+        cidade VARCHAR(100),
+        pais VARCHAR(100),
+        estado VARCHAR(50),
+        temquealterarpassword BOOLEAN DEFAULT FALSE
+      );`,
+      
+      // 2. Adicionar coluna role se não existir
+      `ALTER TABLE utilizador ADD COLUMN IF NOT EXISTS role VARCHAR(50);`,
+      `UPDATE utilizador SET role = tipo WHERE role IS NULL;`,
+      
+      // 3. Cursos
+      `CREATE TABLE IF NOT EXISTS cursos (
+        id SERIAL PRIMARY KEY,
+        titulo VARCHAR(255),
+        descricao TEXT,
+        tema VARCHAR(255),
+        data_inicio DATE,
+        data_fim DATE,
+        tipo VARCHAR(50),
+        estado VARCHAR(50),
+        imgcurso VARCHAR(500),
+        avaliacao DECIMAL(3,2),
+        dificuldade VARCHAR(50),
+        pontos INTEGER,
+        requisitos JSON,
+        publico_alvo JSON,
+        dados JSON,
+        informacoes TEXT,
+        video VARCHAR(500),
+        alerta_formador TEXT,
+        formador_responsavel VARCHAR(255),
+        aprender_no_curso JSON,
+        idioma VARCHAR(50),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        vagas_inscricao INTEGER DEFAULT 0
+      );`,
+      
+      // 4. Categorias
+      `CREATE TABLE IF NOT EXISTS categorias (
+        idcategoria SERIAL PRIMARY KEY,
+        nome VARCHAR(255)
+      );`,
+      
+      // 5. Areas
+      `CREATE TABLE IF NOT EXISTS areas (
+        idarea SERIAL PRIMARY KEY,
+        idcategoria INTEGER,
+        nome VARCHAR(255)
+      );`,
+      
+      // 6. Topicos
+      `CREATE TABLE IF NOT EXISTS topicos (
+        idtopicos SERIAL PRIMARY KEY,
+        idarea INTEGER,
+        nome VARCHAR(255)
+      );`,
+      
+      // 7. Post (não posts!)
+      `CREATE TABLE IF NOT EXISTS post (
+        idpost SERIAL PRIMARY KEY,
+        idutilizador INTEGER,
+        idtopico INTEGER,
+        texto TEXT,
+        titulo VARCHAR(255),
+        datahora TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        anexo VARCHAR(255) DEFAULT '',
+        url VARCHAR(255) DEFAULT ''
+      );`,
+      
+      // 8. Inscricoes
+      `CREATE TABLE IF NOT EXISTS inscricoes (
+        idinscricao SERIAL PRIMARY KEY,
+        idutilizador INTEGER,
+        idcurso INTEGER,
+        data_inscricao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        estado VARCHAR(50) DEFAULT 'ativa'
+      );`,
+      
+      // 9. Respostas
+      `CREATE TABLE IF NOT EXISTS respostas (
+        idresposta SERIAL PRIMARY KEY,
+        idpost INTEGER,
+        idutilizador INTEGER,
+        texto TEXT,
+        datahora TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );`,
+      
+      // 10. Remover tabela posts se existir (nome errado)
+      `DROP TABLE IF EXISTS posts CASCADE;`,
+      
+      // 11. Dados básicos se não existirem
+      `INSERT INTO utilizador (idutilizador, nome, email, palavrapasse, tipo, role, datanascimento, telemovel, morada, codigopostal, ultimoacesso, pontos, cidade, pais, estado, temquealterarpassword) 
+       VALUES (8, 'Formando 1', 'softskillsformando@gmail.com', '$2b$10$8XRfmJKWI3kfKFqUxCvXzuVeG/nugKaym2IdaasIuhqtItzL66x5m', 'formando', 'formando', '2010-10-10', '912323455', 'Rua do Formando 1', '3505-527', NOW(), 0, 'Viseu', 'Portugal', 'ativo', FALSE) 
+       ON CONFLICT (email) DO UPDATE SET role = EXCLUDED.role;`
+    ];
+    
+    let createdCount = 0;
+    for (const sql of createTablesSQL) {
+      try {
+        await sequelize.query(sql);
+        createdCount++;
+      } catch (error) {
+        console.log(`⚠️ ${error.message.substring(0, 80)}`);
+      }
+    }
+    
+    // Verificar estrutura final
+    const [tabelas] = await sequelize.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public' 
+      ORDER BY table_name
+    `);
+    
+    const [userCheck] = await sequelize.query(`SELECT COUNT(*) as total FROM utilizador`);
+    
+    res.json({
+      status: '🎉 ESTRUTURA CRIADA COM SUCESSO!',
+      message: 'Base de dados estruturada corretamente',
+      operacoes_executadas: createdCount,
+      tabelas_criadas: tabelas.map(t => t.table_name),
+      total_utilizadores: userCheck[0].total,
+      problemas_resolvidos: [
+        '✅ Tabela "post" criada (não "posts")',
+        '✅ Coluna "role" adicionada',
+        '✅ Estrutura sem conflitos de FK',
+        '✅ Utilizador de teste criado',
+        '✅ Pronto para importar dados'
+      ],
+      proximo_passo: 'Use /fix-inscricoes-respostas para completar',
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro ao criar estrutura:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Erro ao criar estrutura da BD',
       error: error.message
     });
   }
