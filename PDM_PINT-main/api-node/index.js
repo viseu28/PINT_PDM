@@ -245,6 +245,61 @@ app.get('/create-main-tables', async (req, res) => {
   }
 });
 
+// Endpoint para verificar todas as tabelas existentes
+app.get('/check-tables', async (req, res) => {
+  try {
+    console.log('🔍 Verificando tabelas existentes...');
+    
+    // Listar todas as tabelas no schema public
+    const tablesQuery = await sequelize.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public' 
+      ORDER BY table_name;
+    `);
+    
+    const existingTables = tablesQuery[0].map(row => row.table_name);
+    
+    // Lista das tabelas esperadas (baseada nos modelos)
+    const expectedTables = [
+      'administra', 'administrador', 'analisa', 'areas', 'assincrono',
+      'avaliacoes', 'categorias', 'comentarios', 'conteudo', 'curriculopendente',
+      'cursos', 'cursospendentes', 'denuncia', 'disponibiliza', 'favoritos',
+      'formCurriculo', 'formInscricao', 'formador', 'formando', 'forum',
+      'gerirConteudo', 'gerirCurso', 'guardado', 'horariopessoal', 'horariosemanal',
+      'inscricaoCurso', 'likes_forum', 'material', 'notificacao', 'percursoformativo',
+      'permissoes', 'post', 'projetos', 'projetos_submissoes', 'recebe',
+      'resposta', 'roles_permissoes', 'sincronos', 'temConteudo', 'topicos', 'utilizador'
+    ];
+    
+    const missingTables = expectedTables.filter(table => !existingTables.includes(table));
+    
+    console.log(`✅ Encontradas ${existingTables.length} tabelas`);
+    if (missingTables.length > 0) {
+      console.log(`⚠️ Faltam ${missingTables.length} tabelas:`, missingTables);
+    }
+    
+    res.json({
+      status: 'success',
+      total_existing: existingTables.length,
+      total_expected: expectedTables.length,
+      existing_tables: existingTables,
+      missing_tables: missingTables,
+      all_tables_present: missingTables.length === 0,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro ao verificar tabelas:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Erro ao verificar tabelas',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // Endpoint para inserir dados de teste
 app.get('/insert-test-data', async (req, res) => {
   try {
