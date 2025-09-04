@@ -509,6 +509,158 @@ app.get('/force-sync-all-tables', async (req, res) => {
   }
 });
 
+// Endpoint para criar tabelas em falta manualmente
+app.get('/create-missing-tables', async (req, res) => {
+  try {
+    console.log('🔨 Criando tabelas em falta...');
+    
+    // Lista de tabelas essenciais que faltam
+    const tablesToCreate = [
+      // Tabela topicos (causa do erro principal)
+      {
+        name: 'topicos',
+        sql: `CREATE TABLE IF NOT EXISTS "public"."topicos" (
+          "idtopicos" SERIAL PRIMARY KEY,
+          "idarea" INTEGER REFERENCES "public"."areas" ("idarea"),
+          "nome" TEXT NOT NULL
+        );`
+      },
+      // Outras tabelas importantes
+      {
+        name: 'forum',
+        sql: `CREATE TABLE IF NOT EXISTS "public"."forum" (
+          "idforum" SERIAL PRIMARY KEY,
+          "nome" TEXT NOT NULL,
+          "descricao" TEXT,
+          "datahora" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          "estado" BOOLEAN DEFAULT true,
+          "idtopico" INTEGER,
+          "autor" TEXT
+        );`
+      },
+      {
+        name: 'post',
+        sql: `CREATE TABLE IF NOT EXISTS "public"."post" (
+          "idpost" SERIAL PRIMARY KEY,
+          "idutilizador" INTEGER REFERENCES "public"."utilizador" ("idutilizador"),
+          "texto" TEXT NOT NULL,
+          "titulo" TEXT NOT NULL,
+          "datahora" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          "anexo" TEXT,
+          "url" TEXT,
+          "idtopico" INTEGER,
+          "anexo_url" TEXT
+        );`
+      }
+    ];
+    
+    let createdTables = [];
+    
+    for (const table of tablesToCreate) {
+      try {
+        await sequelize.query(table.sql);
+        createdTables.push(table.name);
+        console.log(`✅ Tabela criada: ${table.name}`);
+      } catch (error) {
+        console.log(`⚠️ Erro ao criar ${table.name}: ${error.message}`);
+      }
+    }
+    
+    console.log(`✅ Processo completo! ${createdTables.length} tabelas criadas`);
+    
+    res.json({
+      status: 'success',
+      message: 'Tabelas essenciais criadas!',
+      tables_created: createdTables,
+      total_created: createdTables.length,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro ao criar tabelas:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Erro ao criar tabelas',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Endpoint para inserir dados da BD original
+app.get('/import-original-data', async (req, res) => {
+  try {
+    console.log('📥 Importando dados originais da BD...');
+    
+    // Apagar utilizador temporário primeiro
+    await sequelize.query(`DELETE FROM "public"."utilizador" WHERE "email" = 'softskillsformando@gmail.com' AND "nome" = 'Formando 1';`);
+    
+    // Dados originais da tua BD (do arquivo exportado)
+    const originalData = [
+      // Utilizadores originais
+      `INSERT INTO "public"."utilizador" ("idutilizador", "nome", "email", "palavrapasse", "tipo", "datanascimento", "telemovel", "morada", "codigopostal", "ultimoacesso", "pontos", "cidade", "pais", "estado", "temquealterarpassword", "fcm_token") VALUES (1, 'Formador 1', 'softskillsformador@gmail.com', '$2b$10$A9QaVPsG3voPYzpMOFzNUOXyDtY6IYVhWfOFe3JpHLOFjJu0MW8Qy', 'formador', '1980-04-19', '912345234', 'Rua do Formando 1', '3505-527', '2025-09-04T15:19:30.573Z', 0, 'Viseu', 'Portugal', 'ativo', FALSE, 'ceJYuGdiI-wzArLVrpb06V:APA91bFZW6c-B9RgmuQp4G76DWDBYsjZdZ86cFJhflNn42qp8lEZ2iPoCBOYacZAimUI3t8-c928J7NLVvOFPn1pHdqOqOLlvSZu-z8W8CGpSZCXNMfv8mQ');`,
+      
+      `INSERT INTO "public"."utilizador" ("idutilizador", "nome", "email", "palavrapasse", "tipo", "datanascimento", "telemovel", "morada", "codigopostal", "ultimoacesso", "pontos", "cidade", "pais", "estado", "temquealterarpassword", "fcm_token") VALUES (4, 'Administrador 1', 'softskillsadm@gmail.com', '$2b$10$6o5iSBJWBtn1VzCNuM5gSu/8zFhYzl0ukhSLs3DSpIlVaF.TPZ65O', 'administrador', '2005-10-23', '913012697', 'Rua de minha Casa', '3505-527', '2025-09-04T15:24:19.270Z', 0, 'Viseu', 'Portugal', 'ativo', FALSE, 'ceJYuGdiI-wzArLVrpb06V:APA91bFZW6c-B9RgmuQp4G76DWDBYsjZdZ86cFJhflNn42qp8lEZ2iPoCBOYacZAimUI3t8-c928J7NLVvOFPn1pHdqOqOLlvSZu-z8W8CGpSZCXNMfv8mQ');`,
+      
+      `INSERT INTO "public"."utilizador" ("idutilizador", "nome", "email", "palavrapasse", "tipo", "datanascimento", "telemovel", "morada", "codigopostal", "ultimoacesso", "pontos", "cidade", "pais", "estado", "temquealterarpassword", "fcm_token") VALUES (8, 'Formando 1', 'softskillsformando@gmail.com', '$2b$10$8XRfmJKWI3kfKFqUxCvXzuVeG/nugKaym2IdaasIuhqtItzL66x5m', 'formando', '2010-10-10', '912323455', 'Rua do Formando 1', '3505-527', '2025-09-04T15:32:15.930Z', 0, 'Viseu', 'Portugal', 'ativo', FALSE, 'eRos1Rc6R5OEHCMMvhZmkd:APA91bEu21ueMIfMOpUGRUfYMT405-pBghKiJSYRMz86W6YCJnazNe76L0U8KsSiOkSPPMHQJozLxo6l1nC1L-ts8d-_uyuKT17YbSKyPmJXC6C9W3ZbAwk');`,
+      
+      // Categorias
+      `INSERT INTO "public"."categorias" ("idcategoria", "nome") VALUES (1, 'Programação');`,
+      `INSERT INTO "public"."categorias" ("idcategoria", "nome") VALUES (2, 'Perguntas e Respostas');`,
+      `INSERT INTO "public"."categorias" ("idcategoria", "nome") VALUES (3, 'Cultura da Internet');`,
+      `INSERT INTO "public"."categorias" ("idcategoria", "nome") VALUES (4, 'Tecnologia');`,
+      
+      // Áreas
+      `INSERT INTO "public"."areas" ("idarea", "idcategoria", "nome") VALUES (1, 1, 'Desenvolvimento Web');`,
+      `INSERT INTO "public"."areas" ("idarea", "idcategoria", "nome") VALUES (2, 1, 'Desenvolvimento Mobile');`,
+      `INSERT INTO "public"."areas" ("idarea", "idcategoria", "nome") VALUES (3, 1, 'Base de Dados');`,
+      `INSERT INTO "public"."areas" ("idarea", "idcategoria", "nome") VALUES (4, 1, 'Automação e Scripting');`,
+      
+      // Tópicos
+      `INSERT INTO "public"."topicos" ("idtopicos", "idarea", "nome") VALUES (1, 1, 'HTML');`,
+      `INSERT INTO "public"."topicos" ("idtopicos", "idarea", "nome") VALUES (2, 1, 'CSS');`,
+      `INSERT INTO "public"."topicos" ("idtopicos", "idarea", "nome") VALUES (3, 1, 'JavaScript');`,
+      `INSERT INTO "public"."topicos" ("idtopicos", "idarea", "nome") VALUES (11, 7, 'Linux');`,
+      `INSERT INTO "public"."topicos" ("idtopicos", "idarea", "nome") VALUES (13, 8, 'Inscrições');`
+    ];
+    
+    let importedCount = 0;
+    
+    for (const sql of originalData) {
+      try {
+        await sequelize.query(sql);
+        importedCount++;
+        console.log(`✅ Dados importados: ${sql.substring(0, 80)}...`);
+      } catch (error) {
+        console.log(`⚠️ Já existe ou erro: ${error.message.substring(0, 100)}`);
+      }
+    }
+    
+    console.log(`✅ Importação completa! ${importedCount} registos importados`);
+    
+    res.json({
+      status: 'success',
+      message: 'Dados originais importados com sucesso!',
+      records_imported: importedCount,
+      original_users: [
+        'softskillsformando@gmail.com (ID: 8)',
+        'softskillsformador@gmail.com (ID: 1)', 
+        'softskillsadm@gmail.com (ID: 4)'
+      ],
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro na importação:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Erro na importação de dados originais',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // Endpoint para inserir utilizador específico SEM conflito de ID
 app.get('/insert-formando-direto', async (req, res) => {
   try {
