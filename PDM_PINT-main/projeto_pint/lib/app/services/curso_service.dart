@@ -35,7 +35,7 @@ import 'package:projeto_pint/app/database/local_database.dart';
 import '../../config/api_config.dart';
 
 class CursoService {
-  static const String baseUrl = '${ApiConfig.baseUrl}';
+  static String get baseUrl => ApiConfig.baseUrl;
 
   // Método para configurar IP dinamicamente se necessário
   static String _obterBaseUrl() {
@@ -46,15 +46,7 @@ class CursoService {
   // Função auxiliar para testar conectividade e encontrar URL que funciona
   static Future<String?> _encontrarUrlFuncionando() async {
     final urlsTeste = [
-      '${ApiConfig.baseUrl}', // IP atual da máquina
-      'http://192.168.1.688:3000', // IPs próximos caso tenha mudado
-      'http://192.168.1.5:3000', 
-      'http://192.168.1.7:3000',
-      'http://192.168.1.4:3000',
-      'http://192.168.1.8:3000',
-      'http://10.0.2.2:3000', // Para emulador Android
-      'http://localhost:3000', // Para desenvolvimento local
-      '${ApiConfig.baseUrl}',
+      ApiConfig.baseUrl, // URL principal (produção ou desenvolvimento)
     ];
 
     for (String url in urlsTeste) {
