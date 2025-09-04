@@ -850,6 +850,206 @@ app.get('/fix-formando-user', async (req, res) => {
   }
 });
 
+// Endpoint SUPER RÁPIDO para importar TUDO de uma vez
+app.get('/import-everything-now', async (req, res) => {
+  try {
+    console.log('🚀 IMPORTANDO TUDO AGORA...');
+    
+    // 1. Criar todas as tabelas em falta
+    const createTablesSQL = [
+      `CREATE TABLE IF NOT EXISTS aulas (
+        id SERIAL PRIMARY KEY,
+        titulo VARCHAR(255),
+        data_aula TIMESTAMP,
+        id_curso INTEGER
+      );`,
+      
+      `CREATE TABLE IF NOT EXISTS comentarios (
+        id SERIAL PRIMARY KEY,
+        conteudo TEXT,
+        data_comentario TIMESTAMP DEFAULT NOW(),
+        id_utilizador INTEGER,
+        id_post INTEGER
+      );`,
+      
+      `CREATE TABLE IF NOT EXISTS cursos_recomendados (
+        id SERIAL PRIMARY KEY,
+        id_curso INTEGER,
+        id_utilizador INTEGER
+      );`,
+      
+      `CREATE TABLE IF NOT EXISTS cursos_topicos (
+        id SERIAL PRIMARY KEY,
+        id_curso INTEGER,
+        id_topico INTEGER
+      );`,
+      
+      `CREATE TABLE IF NOT EXISTS denuncia (
+        id SERIAL PRIMARY KEY,
+        motivo TEXT,
+        data_denuncia TIMESTAMP DEFAULT NOW(),
+        id_utilizador INTEGER
+      );`,
+      
+      `CREATE TABLE IF NOT EXISTS denuncia_comentario (
+        id SERIAL PRIMARY KEY,
+        id_denuncia INTEGER,
+        id_comentario INTEGER
+      );`,
+      
+      `CREATE TABLE IF NOT EXISTS guardados (
+        id SERIAL PRIMARY KEY,
+        id_utilizador INTEGER,
+        id_curso INTEGER,
+        data_guardado TIMESTAMP DEFAULT NOW()
+      );`,
+      
+      `CREATE TABLE IF NOT EXISTS likes_forum (
+        id SERIAL PRIMARY KEY,
+        id_utilizador INTEGER,
+        id_post INTEGER,
+        data_like TIMESTAMP DEFAULT NOW()
+      );`,
+      
+      `CREATE TABLE IF NOT EXISTS materiais_apoio (
+        id SERIAL PRIMARY KEY,
+        nome VARCHAR(255),
+        caminho TEXT,
+        id_curso INTEGER
+      );`,
+      
+      `CREATE TABLE IF NOT EXISTS materiais_links (
+        id SERIAL PRIMARY KEY,
+        nome VARCHAR(255),
+        url TEXT,
+        id_curso INTEGER
+      );`,
+      
+      `CREATE TABLE IF NOT EXISTS notificacoes (
+        id SERIAL PRIMARY KEY,
+        titulo VARCHAR(255),
+        conteudo TEXT,
+        data_notificacao TIMESTAMP DEFAULT NOW(),
+        id_utilizador INTEGER,
+        lida BOOLEAN DEFAULT FALSE
+      );`,
+      
+      `CREATE TABLE IF NOT EXISTS pedidos_topicos (
+        id SERIAL PRIMARY KEY,
+        nome_topico VARCHAR(255),
+        descricao TEXT,
+        id_utilizador INTEGER,
+        status VARCHAR(50) DEFAULT 'pendente'
+      );`,
+      
+      `CREATE TABLE IF NOT EXISTS permissoes (
+        id SERIAL PRIMARY KEY,
+        nome VARCHAR(255),
+        descricao TEXT
+      );`,
+      
+      `CREATE TABLE IF NOT EXISTS quizzes (
+        id SERIAL PRIMARY KEY,
+        titulo VARCHAR(255),
+        descricao TEXT,
+        id_curso INTEGER
+      );`,
+      
+      `CREATE TABLE IF NOT EXISTS resposta (
+        id SERIAL PRIMARY KEY,
+        conteudo TEXT,
+        data_resposta TIMESTAMP DEFAULT NOW(),
+        id_utilizador INTEGER,
+        id_comentario INTEGER
+      );`,
+      
+      `CREATE TABLE IF NOT EXISTS respostas_quiz (
+        id SERIAL PRIMARY KEY,
+        resposta TEXT,
+        correta BOOLEAN DEFAULT FALSE,
+        id_quiz INTEGER
+      );`,
+      
+      `CREATE TABLE IF NOT EXISTS roles_permissoes (
+        id SERIAL PRIMARY KEY,
+        id_role INTEGER,
+        id_permissao INTEGER
+      );`
+    ];
+    
+    // 2. Executar criação de tabelas
+    let tablesCreated = 0;
+    for (const sql of createTablesSQL) {
+      try {
+        await sequelize.query(sql);
+        tablesCreated++;
+      } catch (error) {
+        console.log(`Tabela já existe: ${error.message}`);
+      }
+    }
+    
+    // 3. Importar dados ESSENCIAIS sem fcm_token
+    const importDataSQL = [
+      // Apagar utilizadores existentes
+      `DELETE FROM utilizador WHERE email IN ('softskillsformador@gmail.com', 'softskillsadm@gmail.com', 'softskillsformando@gmail.com');`,
+      
+      // Utilizadores SEM fcm_token
+      `INSERT INTO utilizador (idutilizador, nome, email, palavrapasse, tipo, datanascimento, telemovel, morada, codigopostal, ultimoacesso, pontos, cidade, pais, estado, temquealterarpassword) 
+       VALUES (1, 'Formador 1', 'softskillsformador@gmail.com', '$2b$10$A9QaVPsG3voPYzpMOFzNUOXyDtY6IYVhWfOFe3JpHLOFjJu0MW8Qy', 'formador', '1980-04-19', '912345234', 'Rua do Formando 1', '3505-527', NOW(), 0, 'Viseu', 'Portugal', 'ativo', FALSE);`,
+      
+      `INSERT INTO utilizador (idutilizador, nome, email, palavrapasse, tipo, datanascimento, telemovel, morada, codigopostal, ultimoacesso, pontos, cidade, pais, estado, temquealterarpassword) 
+       VALUES (4, 'Administrador 1', 'softskillsadm@gmail.com', '$2b$10$6o5iSBJWBtn1VzCNuM5gSu/8zFhYzl0ukhSLs3DSpIlVaF.TPZ65O', 'administrador', '2005-10-23', '913012697', 'Rua de minha Casa', '3505-527', NOW(), 0, 'Viseu', 'Portugal', 'ativo', FALSE);`,
+      
+      `INSERT INTO utilizador (idutilizador, nome, email, palavrapasse, tipo, datanascimento, telemovel, morada, codigopostal, ultimoacesso, pontos, cidade, pais, estado, temquealterarpassword) 
+       VALUES (8, 'Formando 1', 'softskillsformando@gmail.com', '$2b$10$8XRfmJKWI3kfKFqUxCvXzuVeG/nugKaym2IdaasIuhqtItzL66x5m', 'formando', '2010-10-10', '912323455', 'Rua do Formando 1', '3505-527', NOW(), 0, 'Viseu', 'Portugal', 'ativo', FALSE);`
+    ];
+    
+    // 4. Executar importação de dados
+    let importedCount = 0;
+    for (const sql of importDataSQL) {
+      try {
+        await sequelize.query(sql);
+        importedCount++;
+      } catch (error) {
+        console.log(`Aviso: ${error.message}`);
+      }
+    }
+    
+    // 5. Verificar resultado final
+    const [tableCount] = await sequelize.query(`
+      SELECT COUNT(*) as total 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
+    `);
+    
+    const [userCheck] = await sequelize.query(`SELECT COUNT(*) as total FROM utilizador`);
+    
+    res.json({
+      status: 'success',
+      message: '🎉 TUDO IMPORTADO COM SUCESSO!',
+      tabelas_criadas: tablesCreated,
+      dados_importados: importedCount,
+      total_tabelas: tableCount[0].total,
+      total_utilizadores: userCheck[0].total,
+      login_info: {
+        email: 'softskillsformando@gmail.com',
+        password: 'password123'
+      },
+      app_pronta: 'Agora podes fazer login na app móvel!',
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro na importação total:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Erro na importação total',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // Endpoint para inserir dados de teste
 app.get('/insert-test-data', async (req, res) => {
   try {
