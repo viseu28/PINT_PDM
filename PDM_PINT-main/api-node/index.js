@@ -63,8 +63,18 @@ const sequelize = process.env.DATABASE_URL
     );
 
 sequelize.authenticate()
-  .then(() => {
+  .then(async () => {
     console.log('Ligação à base de dados (Postgres) bem sucedida.');
+    
+    // Inicializar modelos
+    console.log('🔄 Inicializando modelos...');
+    const dbModels = initModels(sequelize);
+    
+    // Sincronizar base de dados (criar tabelas se não existirem)
+    console.log('🔄 Sincronizando base de dados...');
+    await sequelize.sync({ force: false });
+    console.log('✅ Base de dados sincronizada com sucesso!');
+    
     initializeFirebase();
   })
   .catch((err) => console.log('Erro ao ligar à base de dados (Postgres): ', err));
