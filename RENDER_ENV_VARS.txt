@@ -1,0 +1,48 @@
+# 🔑 ENVIRONMENT VARIABLES PARA A API PINT-PDM
+# Use estas variáveis quando criar o Web Service no Render
+
+# ==========================================
+# DATABASE CONFIGURATION
+# ==========================================
+# IMPORTANTE: Substitua com os valores reais da sua base de dados PostgreSQL
+DATABASE_URL=postgresql://pint_kone_user:SUBSTITUA_PELA_PASSWORD_REAL@dpg-d2ktbjqnbrc73bk4dpg-a.frankfurt-postgres.render.com:5432/pint_kone
+DB_HOST=dpg-d2ktbjqnbrc73bk4dpg-a.frankfurt-postgres.render.com
+DB_USER=pint_kone_user
+DB_PASSWORD=SUBSTITUA_PELA_PASSWORD_REAL
+DB_NAME=pint_kone
+DB_PORT=5432
+
+# ==========================================
+# APPLICATION CONFIGURATION
+# ==========================================
+NODE_ENV=production
+PORT=3000
+JWT_SECRET=minha-chave-secreta-jwt-123-render-prod
+
+# ==========================================
+# CLOUDINARY CONFIGURATION (Já configurado)
+# ==========================================
+CLOUDINARY_CLOUD_NAME=de3xeyh4u
+CLOUDINARY_API_KEY=819929135217463
+CLOUDINARY_API_SECRET=XvpF8HgE8S3zSrObksS0hvHNGoc
+
+# ==========================================
+# EMAIL CONFIGURATION (Já configurado)
+# ==========================================
+EMAIL_USER=softskillsnotifier@gmail.com
+EMAIL_PASS=nqqgdzhdbtmhzcsr
+
+# ==========================================
+# FIREBASE CONFIGURATION (Opcional - configure se usar)
+# ==========================================
+# FIREBASE_PROJECT_ID=seu-projeto-firebase
+# FIREBASE_PRIVATE_KEY=sua-chave-privada-firebase
+# FIREBASE_CLIENT_EMAIL=seu-email-firebase
+
+# ==========================================
+# INSTRUÇÕES:
+# ==========================================
+# 1. COPIE a External Database URL completa da página do Render
+# 2. SUBSTITUA o valor de DATABASE_URL acima
+# 3. EXTRAIA a password da URL e coloque em DB_PASSWORD
+# 4. Use estas variáveis quando criar o Web Service
