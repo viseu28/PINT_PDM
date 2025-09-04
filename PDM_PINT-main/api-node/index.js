@@ -509,6 +509,82 @@ app.get('/force-sync-all-tables', async (req, res) => {
   }
 });
 
+// Endpoint para inserir utilizador específico SEM conflito de ID
+app.get('/insert-formando-direto', async (req, res) => {
+  try {
+    console.log('🎯 Inserindo formando diretamente...');
+    
+    // Usar Sequelize para inserir sem especificar ID (auto-increment)
+    const bcrypt = require('bcryptjs');
+    const hashedPassword = '$2b$10$8XRfmJKWI3kfKFqUxCvXzuVeG/nugKaym2IdaasIuhqtItzL66x5m'; // Password já hasheada para '123456'
+    
+    // Verificar se já existe
+    const existingUser = await db.utilizador.findOne({
+      where: { email: 'softskillsformando@gmail.com' }
+    });
+    
+    if (existingUser) {
+      res.json({
+        status: 'already_exists',
+        message: 'Utilizador já existe!',
+        user: {
+          id: existingUser.idutilizador,
+          email: existingUser.email,
+          tipo: existingUser.tipo,
+          estado: existingUser.estado
+        },
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      // Criar utilizador novo
+      const newUser = await db.utilizador.create({
+        nome: 'Formando 1',
+        email: 'softskillsformando@gmail.com',
+        palavrapasse: hashedPassword,
+        tipo: 'formando',
+        datanascimento: '2010-10-10',
+        telemovel: '912323455',
+        morada: 'Rua do Formando 1',
+        codigopostal: '3505-527',
+        ultimoacesso: new Date(),
+        pontos: 0,
+        cidade: 'Viseu',
+        pais: 'Portugal',
+        estado: 'ativo',
+        temquealterarpassword: false,
+        fcm_token: 'eRos1Rc6R5OEHCMMvhZmkd:APA91bEu21ueMIfMOpUGRUfYMT405-pBghKiJSYRMz86W6YCJnazNe76L0U8KsSiOkSPPMHQJozLxo6l1nC1L-ts8d-_uyuKT17YbSKyPmJXC6C9W3ZbAwk'
+      });
+      
+      console.log(`✅ Utilizador criado com ID: ${newUser.idutilizador}`);
+      
+      res.json({
+        status: 'success',
+        message: 'Utilizador formando criado com sucesso!',
+        user: {
+          id: newUser.idutilizador,
+          email: newUser.email,
+          tipo: newUser.tipo,
+          estado: newUser.estado
+        },
+        login_info: {
+          email: 'softskillsformando@gmail.com',
+          password: '123456'
+        },
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+  } catch (error) {
+    console.error('❌ Erro ao inserir formando:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Erro ao inserir formando',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // Endpoint para importar dados exportados diretamente (RÁPIDO)
 app.get('/import-data-quick', async (req, res) => {
   try {
