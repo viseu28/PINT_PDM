@@ -789,6 +789,67 @@ app.get('/import-data-quick', async (req, res) => {
   }
 });
 
+// Endpoint específico para corrigir utilizador formando
+app.get('/fix-formando-user', async (req, res) => {
+  try {
+    console.log('🔧 Corrigindo utilizador formando...');
+    
+    // Apagar qualquer utilizador existente com este email primeiro
+    await sequelize.query(`DELETE FROM "public"."utilizador" WHERE "email" = 'softskillsformando@gmail.com';`);
+    
+    // Inserir o utilizador formando com os dados corretos
+    const insertFormando = `
+      INSERT INTO "public"."utilizador" ("idutilizador", "nome", "email", "palavrapasse", "tipo", "datanascimento", "telemovel", "morada", "codigopostal", "ultimoacesso", "pontos", "cidade", "pais", "estado", "temquealterarpassword", "fcm_token") 
+      VALUES (8, 'Formando 1', 'softskillsformando@gmail.com', '$2b$10$8XRfmJKWI3kfKFqUxCvXzuVeG/nugKaym2IdaasIuhqtItzL66x5m', 'formando', '2010-10-10', '912323455', 'Rua do Formando 1', '3505-527', NOW(), 0, 'Viseu', 'Portugal', 'ativo', FALSE, 'eRos1Rc6R5OEHCMMvhZmkd:APA91bEu21ueMIfMOpUGRUfYMT405-pBghKiJSYRMz86W6YCJnazNe76L0U8KsSiOkSPPMHQJozLxo6l1nC1L-ts8d-_uyuKT17YbSKyPmJXC6C9W3ZbAwk')
+      ON CONFLICT (idutilizador) DO UPDATE SET
+        nome = EXCLUDED.nome,
+        email = EXCLUDED.email,
+        palavrapasse = EXCLUDED.palavrapasse,
+        tipo = EXCLUDED.tipo,
+        datanascimento = EXCLUDED.datanascimento,
+        telemovel = EXCLUDED.telemovel,
+        morada = EXCLUDED.morada,
+        codigopostal = EXCLUDED.codigopostal,
+        pontos = EXCLUDED.pontos,
+        cidade = EXCLUDED.cidade,
+        pais = EXCLUDED.pais,
+        estado = EXCLUDED.estado,
+        temquealterarpassword = EXCLUDED.temquealterarpassword,
+        fcm_token = EXCLUDED.fcm_token;
+    `;
+    
+    await sequelize.query(insertFormando);
+    
+    // Verificar se foi criado
+    const [results] = await sequelize.query(`SELECT * FROM "public"."utilizador" WHERE "email" = 'softskillsformando@gmail.com';`);
+    
+    if (results.length > 0) {
+      res.json({
+        status: 'success',
+        message: 'Utilizador formando corrigido com sucesso!',
+        user: results[0],
+        password_info: 'A password é: password123',
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      res.status(500).json({
+        status: 'error',
+        message: 'Falha ao criar utilizador formando',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+  } catch (error) {
+    console.error('❌ Erro ao corrigir utilizador formando:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Erro ao corrigir utilizador formando',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // Endpoint para inserir dados de teste
 app.get('/insert-test-data', async (req, res) => {
   try {
