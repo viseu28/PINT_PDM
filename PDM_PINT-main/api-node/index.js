@@ -509,6 +509,58 @@ app.get('/force-sync-all-tables', async (req, res) => {
   }
 });
 
+// Endpoint para importar dados exportados diretamente (RÁPIDO)
+app.get('/import-data-quick', async (req, res) => {
+  try {
+    console.log('🚀 Importando dados rapidamente...');
+    
+    // Dados essenciais para o login funcionar
+    const sqlStatements = [
+      // Utilizadores
+      `INSERT INTO "public"."utilizador" ("idutilizador", "nome", "email", "palavrapasse", "tipo", "datanascimento", "telemovel", "morada", "codigopostal", "ultimoacesso", "pontos", "cidade", "pais", "estado", "temquealterarpassword", "fcm_token") VALUES (1, 'Formador 1', 'softskillsformador@gmail.com', '$2b$10$A9QaVPsG3voPYzpMOFzNUOXyDtY6IYVhWfOFe3JpHLOFjJu0MW8Qy', 'formador', '1980-04-19', '912345234', 'Rua do Formando 1', '3505-527', '2025-09-04T15:19:30.573Z', 0, 'Viseu', 'Portugal', 'ativo', FALSE, 'ceJYuGdiI-wzArLVrpb06V:APA91bFZW6c-B9RgmuQp4G76DWDBYsjZdZ86cFJhflNn42qp8lEZ2iPoCBOYacZAimUI3t8-c928J7NLVvOFPn1pHdqOqOLlvSZu-z8W8CGpSZCXNMfv8mQ');`,
+      
+      `INSERT INTO "public"."utilizador" ("idutilizador", "nome", "email", "palavrapasse", "tipo", "datanascimento", "telemovel", "morada", "codigopostal", "ultimoacesso", "pontos", "cidade", "pais", "estado", "temquealterarpassword", "fcm_token") VALUES (4, 'Administrador 1', 'softskillsadm@gmail.com', '$2b$10$6o5iSBJWBtn1VzCNuM5gSu/8zFhYzl0ukhSLs3DSpIlVaF.TPZ65O', 'administrador', '2005-10-23', '913012697', 'Rua de minha Casa', '3505-527', '2025-09-04T15:24:19.270Z', 0, 'Viseu', 'Portugal', 'ativo', FALSE, 'ceJYuGdiI-wzArLVrpb06V:APA91bFZW6c-B9RgmuQp4G76DWDBYsjZdZ86cFJhflNn42qp8lEZ2iPoCBOYacZAimUI3t8-c928J7NLVvOFPn1pHdqOqOLlvSZu-z8W8CGpSZCXNMfv8mQ');`,
+      
+      `INSERT INTO "public"."utilizador" ("idutilizador", "nome", "email", "palavrapasse", "tipo", "datanascimento", "telemovel", "morada", "codigopostal", "ultimoacesso", "pontos", "cidade", "pais", "estado", "temquealterarpassword", "fcm_token") VALUES (8, 'Formando 1', 'softskillsformando@gmail.com', '$2b$10$8XRfmJKWI3kfKFqUxCvXzuVeG/nugKaym2IdaasIuhqtItzL66x5m', 'formando', '2010-10-10', '912323455', 'Rua do Formando 1', '3505-527', '2025-09-04T15:32:15.930Z', 0, 'Viseu', 'Portugal', 'ativo', FALSE, 'eRos1Rc6R5OEHCMMvhZmkd:APA91bEu21ueMIfMOpUGRUfYMT405-pBghKiJSYRMz86W6YCJnazNe76L0U8KsSiOkSPPMHQJozLxo6l1nC1L-ts8d-_uyuKT17YbSKyPmJXC6C9W3ZbAwk');`
+    ];
+    
+    let insertedCount = 0;
+    
+    for (const sql of sqlStatements) {
+      try {
+        await sequelize.query(sql);
+        insertedCount++;
+        console.log(`✅ Executado: ${sql.substring(0, 100)}...`);
+      } catch (error) {
+        console.log(`⚠️ Já existe ou erro: ${error.message.substring(0, 100)}`);
+      }
+    }
+    
+    console.log(`✅ Importação rápida completa! ${insertedCount} utilizadores inseridos`);
+    
+    res.json({
+      status: 'success',
+      message: 'Dados importados rapidamente!',
+      usuarios_inseridos: insertedCount,
+      principais_usuarios: [
+        'softskillsformando@gmail.com (formando)',
+        'softskillsformador@gmail.com (formador)', 
+        'softskillsadm@gmail.com (administrador)'
+      ],
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro na importação rápida:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Erro na importação rápida',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // Endpoint para inserir dados de teste
 app.get('/insert-test-data', async (req, res) => {
   try {
