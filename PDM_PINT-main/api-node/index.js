@@ -2227,6 +2227,206 @@ app.get('/create-database-structure', async (req, res) => {
   }
 });
 
+// ENDPOINT PARA CORRIGIR COMPATIBILIDADE COM FLUTTER - INSCRIÇÕES
+app.get('/inscricoes', async (req, res) => {
+  try {
+    // Pegar userId do token ou da query
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    let userId = req.query.userId;
+    
+    // Se não tem userId na query, tentar extrair do token
+    if (!userId && token) {
+      try {
+        const jwt = require('jsonwebtoken');
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'segredo123');
+        userId = decoded.userId;
+      } catch (error) {
+        console.log('⚠️ Token inválido, usando userId padrão');
+        userId = 8; // Formando padrão
+      }
+    }
+    
+    if (!userId) userId = 8; // Default para o formando
+    
+    console.log(`📋 Buscando inscrições do utilizador: ${userId}`);
+    
+    // Buscar inscrições da nossa tabela "inscricoes"
+    const [inscricoes] = await sequelize.query(`
+      SELECT 
+        i.idinscricao,
+        i.data_inscricao,
+        i.estado as estado_inscricao,
+        c.id as idcurso,
+        c.titulo,
+        c.descricao,
+        c.tema,
+        c.data_inicio,
+        c.data_fim,
+        c.tipo,
+        c.estado as estado_curso,
+        c.imgcurso,
+        c.dificuldade,
+        c.pontos,
+        c.avaliacao,
+        c.formador_responsavel,
+        CASE 
+          WHEN c.tipo = 'Síncrono' THEN true 
+          ELSE false 
+        END as sincrono
+      FROM inscricoes i 
+      JOIN cursos c ON i.idcurso = c.id 
+      WHERE i.idutilizador = :userId AND i.estado = 'ativa'
+      ORDER BY i.data_inscricao DESC
+    `, {
+      replacements: { userId: userId }
+    });
+    
+    // Formatar para compatibilidade com Flutter
+    const inscricoesFormatadas = inscricoes.map(inscricao => ({
+      idinscricao: inscricao.idinscricao,
+      objetivos: 'Adquirir conhecimentos na área',
+      data_inscricao: inscricao.data_inscricao,
+      estado: true,
+      curso: {
+        id: inscricao.idcurso,
+        titulo: inscricao.titulo,
+        descricao: inscricao.descricao,
+        data_inicio: inscricao.data_inicio,
+        data_fim: inscricao.data_fim,
+        dificuldade: inscricao.dificuldade,
+        pontos: inscricao.pontos,
+        tema: inscricao.tema,
+        avaliacao: inscricao.avaliacao,
+        estado: inscricao.estado_curso,
+        sincrono: inscricao.sincrono,
+        imgcurso: inscricao.imgcurso,
+        formador_responsavel: inscricao.formador_responsavel
+      }
+    }));
+    
+    res.json({
+      success: true,
+      data: inscricoesFormatadas,
+      total: inscricoesFormatadas.length
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro ao buscar inscrições:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erro ao buscar inscrições',
+      message: error.message
+    });
+  }
+});
+
+// ENDPOINT PARA POSTS COM RESPOSTAS - COMPATÍVEL COM FLUTTER
+app.get('/posts', async (req, res) => {
+  try {
+    console.log('📋 Buscando posts com respostas...');
+    
+    // Buscar todos os posts
+    const [posts] = await sequelize.query(`
+      SELECT 
+        p.idpost,
+        p.titulo,
+        p.texto,
+        p.datahora,
+        p.anexo,
+        p.url,
+        p.idutilizador,
+        p.idtopico,
+        u.nome as autor_nome,
+        u.tipo as autor_tipo,
+        t.nome as topico_nome
+      FROM post p
+      JOIN utilizador u ON p.idutilizador = u.idutilizador
+      LEFT JOIN topicos t ON p.idtopico = t.idtopicos
+      ORDER BY p.datahora DESC
+    `);
+    
+    // Para cada post, buscar suas respostas
+    const postsComRespostas = [];
+    for (const post of posts) {
+      const [respostas] = await sequelize.query(`
+        SELECT 
+          r.idresposta,
+          r.texto,
+          r.datahora,
+          r.idutilizador,
+          u.nome,
+          u.tipo
+        FROM respostas r 
+        JOIN utilizador u ON r.idutilizador = u.idutilizador 
+        WHERE r.idpost = :postId
+        ORDER BY r.datahora ASC
+      `, {
+        replacements: { postId: post.idpost }
+      });
+      
+      postsComRespostas.push({
+        ...post,
+        respostas: respostas
+      });
+    }
+    
+    res.json({
+      status: 'success',
+      posts: postsComRespostas,
+      total: postsComRespostas.length
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro ao buscar posts:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Erro ao buscar posts',
+      error: error.message
+    });
+  }
+});
+
+// ENDPOINT PARA VERIFICAR INSCRIÇÃO ESPECÍFICA
+app.get('/inscricoes/:userId/curso/:cursoId', async (req, res) => {
+  try {
+    const { userId, cursoId } = req.params;
+    
+    const [inscricao] = await sequelize.query(`
+      SELECT i.*, c.titulo
+      FROM inscricoes i
+      JOIN cursos c ON i.idcurso = c.id  
+      WHERE i.idutilizador = :userId 
+      AND i.idcurso = :cursoId 
+      AND i.estado = 'ativa'
+      LIMIT 1
+    `, {
+      replacements: { userId, cursoId }
+    });
+    
+    const inscrito = inscricao.length > 0;
+    
+    res.json({
+      success: true,
+      inscrito: inscrito,
+      curso_id: parseInt(cursoId),
+      user_id: parseInt(userId),
+      data: inscrito ? {
+        inscricao_id: inscricao[0].idinscricao,
+        curso_titulo: inscricao[0].titulo
+      } : null
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro ao verificar inscrição:', error);
+    res.status(500).json({
+      success: false,
+      inscrito: false,
+      error: 'Erro ao verificar inscrição',
+      message: error.message
+    });
+  }
+});
+
 // Root endpoint
 app.get('/', (req, res) => {
   res.json({ 
