@@ -71,9 +71,32 @@ sequelize.authenticate()
     const dbModels = initModels(sequelize);
     
     // Sincronizar base de dados (criar tabelas se não existirem)
+    // Usar alter: true para modificar tabelas existentes sem apagar dados
     console.log('🔄 Sincronizando base de dados...');
-    await sequelize.sync({ force: false });
-    console.log('✅ Base de dados sincronizada com sucesso!');
+    try {
+      await sequelize.sync({ 
+        force: false,
+        alter: true,
+        logging: console.log
+      });
+      console.log('✅ Base de dados sincronizada com sucesso!');
+    } catch (syncError) {
+      console.log('⚠️ Erro na sincronização inicial, tentando sincronização simples...');
+      console.log('Erro:', syncError.message);
+      
+      // Se falhar, tentar sem foreign keys primeiro
+      try {
+        await sequelize.query('SET foreign_key_checks = 0;').catch(() => {});
+        await sequelize.sync({ 
+          force: false,
+          logging: false
+        });
+        await sequelize.query('SET foreign_key_checks = 1;').catch(() => {});
+        console.log('✅ Base de dados sincronizada com sucesso (modo alternativo)!');
+      } catch (alternativeError) {
+        console.log('❌ Erro na sincronização alternativa:', alternativeError.message);
+      }
+    }
     
     initializeFirebase();
   })
@@ -154,6 +177,68 @@ app.get('/sync-database', async (req, res) => {
     res.status(500).json({
       status: 'error',
       message: 'Erro ao sincronizar base de dados',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Endpoint para criar tabelas principais manualmente
+app.get('/create-main-tables', async (req, res) => {
+  try {
+    console.log('🔄 Criando tabelas principais...');
+    
+    // Criar tabela utilizador primeiro
+    await sequelize.query(`
+      CREATE TABLE IF NOT EXISTS "public"."utilizador" (
+        "idutilizador" SERIAL PRIMARY KEY,
+        "nome" TEXT NOT NULL,
+        "email" TEXT NOT NULL,
+        "palavrapasse" TEXT NOT NULL,
+        "tipo" TEXT NOT NULL,
+        "datanascimento" DATE NOT NULL,
+        "telemovel" TEXT NOT NULL,
+        "morada" TEXT NOT NULL,
+        "codigopostal" TEXT NOT NULL,
+        "ultimoacesso" TIMESTAMP WITH TIME ZONE NOT NULL,
+        "pontos" INTEGER NOT NULL DEFAULT 0,
+        "cidade" TEXT,
+        "pais" TEXT,
+        "estado" TEXT DEFAULT 'ativo',
+        "temquealterarpassword" BOOLEAN NOT NULL DEFAULT true
+      );
+    `);
+    
+    // Criar tabela cursos
+    await sequelize.query(`
+      CREATE TABLE IF NOT EXISTS "public"."cursos" (
+        "id" SERIAL PRIMARY KEY,
+        "titulo" VARCHAR(255) NOT NULL,
+        "descricao" TEXT NOT NULL,
+        "tema" VARCHAR(100) NOT NULL,
+        "data_inicio" TIMESTAMP WITH TIME ZONE NOT NULL,
+        "data_fim" TIMESTAMP WITH TIME ZONE NOT NULL,
+        "tipo" VARCHAR(50) NOT NULL,
+        "estado" VARCHAR(50) NOT NULL,
+        "imgcurso" VARCHAR(255),
+        "avaliacao" DECIMAL(3,2),
+        "dificuldade" VARCHAR(50),
+        "pontos" INTEGER DEFAULT 0
+      );
+    `);
+    
+    console.log('✅ Tabelas principais criadas com sucesso!');
+    res.json({
+      status: 'success',
+      message: 'Tabelas principais criadas com sucesso!',
+      tables_created: ['utilizador', 'cursos'],
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Erro ao criar tabelas principais:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Erro ao criar tabelas principais',
       error: error.message,
       timestamp: new Date().toISOString()
     });
