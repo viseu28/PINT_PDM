@@ -6,7 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import 'dart:typed_data';
 import '../../widgets/notification_badge.dart';
-import '../../../config/api_config.dart';
+import '../../config/api_config.dart';
 
 
 class PercursoFormativoPage extends StatefulWidget {

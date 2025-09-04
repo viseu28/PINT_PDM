@@ -18,7 +18,7 @@ import 'package:file_picker/file_picker.dart';
 import '../../models/link_model.dart';
 import '../../services/link_service.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../../config/api_config.dart';
+import '../../config/api_config.dart';
 
 class CursoInscritoPage extends StatefulWidget {
   final Curso curso;

@@ -8,7 +8,7 @@ import '../../widgets/notification_badge.dart';
 import '../courses/curso_detail_page.dart';
 import '../courses/curso_inscrito_page.dart';
 import '../../database/local_database.dart';
-import '../../../config/api_config.dart';
+import '../../config/api_config.dart';
 
 class CoursesScreen extends StatefulWidget {
   @override

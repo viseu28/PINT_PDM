@@ -14,7 +14,7 @@ import 'conversa_page.dart';
 import 'guardados_page.dart';
 import 'perfil_page.dart';
 import '../../services/curso_service.dart';
-import '../../../config/api_config.dart';
+import '../../config/api_config.dart';
 
 class ForumPage extends StatefulWidget {
   const ForumPage({super.key});

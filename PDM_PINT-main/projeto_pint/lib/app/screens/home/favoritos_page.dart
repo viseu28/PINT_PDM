@@ -723,7 +723,7 @@ import '../../models/curso_model.dart';
 import '../courses/curso_detail_page.dart';
 import 'dart:convert'; 
 import 'dart:typed_data';
-import '../../../config/api_config.dart';
+import '../../config/api_config.dart';
 
 class FavoritosPage extends StatefulWidget {
   const FavoritosPage({super.key});
