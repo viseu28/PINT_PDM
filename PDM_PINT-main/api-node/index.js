@@ -3484,6 +3484,226 @@ app.get('/fix-with-real-columns', async (req, res) => {
   }
 });
 
+// ENDPOINTS ESPECÍFICOS PARA A APP FLUTTER TESTAR
+app.get('/test-meus-cursos/:id', async (req, res) => {
+  try {
+    const userId = req.params.id;
+    console.log(`🎓 TESTANDO MEUS CURSOS PARA USER ${userId}...`);
+    
+    // Testar todas as possíveis queries que a app pode usar
+    const resultados = {};
+    
+    // 1. Query via form_inscricao (mais provável)
+    try {
+      const [inscricoes1] = await sequelize.query(`
+        SELECT fi.*, c.titulo, c.descricao, c.imgcurso, c.estado as estado_curso
+        FROM form_inscricao fi 
+        JOIN cursos c ON fi.idcurso = c.id 
+        WHERE fi.idutilizador = ${userId} AND fi.estado = TRUE
+        ORDER BY fi.data DESC
+      `);
+      resultados.via_form_inscricao = inscricoes1;
+    } catch (e) { resultados.via_form_inscricao = `Erro: ${e.message}`; }
+    
+    // 2. Query via inscricoes (alternativa)
+    try {
+      const [inscricoes2] = await sequelize.query(`
+        SELECT i.*, c.titulo, c.descricao, c.imgcurso
+        FROM inscricoes i 
+        JOIN cursos c ON i.idcurso = c.id 
+        WHERE i.idutilizador = ${userId}
+        ORDER BY i.data DESC
+      `);
+      resultados.via_inscricoes = inscricoes2;
+    } catch (e) { resultados.via_inscricoes = `Erro: ${e.message}`; }
+    
+    // 3. Query via inscricao_curso (outra alternativa)
+    try {
+      const [inscricoes3] = await sequelize.query(`
+        SELECT ic.*, c.titulo, c.descricao, c.imgcurso
+        FROM inscricao_curso ic 
+        JOIN cursos c ON ic.id_curso = c.id 
+        WHERE ic.id_utilizador = ${userId}
+        ORDER BY ic.created_at DESC
+      `);
+      resultados.via_inscricao_curso = inscricoes3;
+    } catch (e) { resultados.via_inscricao_curso = `Erro: ${e.message}`; }
+    
+    res.json({
+      status: '🎓 TESTE MEUS CURSOS',
+      user_id: userId,
+      resultados_queries: resultados,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// TESTAR PERMISSÕES DO USER
+app.get('/test-permissoes/:id', async (req, res) => {
+  try {
+    const userId = req.params.id;
+    console.log(`🔐 TESTANDO PERMISSÕES PARA USER ${userId}...`);
+    
+    const resultados = {};
+    
+    // 1. Buscar tipo do utilizador
+    try {
+      const [user] = await sequelize.query(`SELECT idutilizador, nome, tipo FROM utilizador WHERE idutilizador = ${userId}`);
+      resultados.utilizador = user[0] || 'Não encontrado';
+    } catch (e) { resultados.utilizador = `Erro: ${e.message}`; }
+    
+    // 2. Buscar permissões via roles_permissoes
+    try {
+      const [permissoes1] = await sequelize.query(`
+        SELECT p.*, rp.id_role
+        FROM permissoes p
+        JOIN roles_permissoes rp ON p.id = rp.id_permissao
+        WHERE rp.id_role IN (
+          SELECT id FROM utilizador WHERE idutilizador = ${userId} AND tipo = 'formando'
+        )
+      `);
+      resultados.via_roles_permissoes = permissoes1;
+    } catch (e) { resultados.via_roles_permissoes = `Erro: ${e.message}`; }
+    
+    // 3. Buscar todas as permissões (caso seja direto)
+    try {
+      const [todasPermissoes] = await sequelize.query(`SELECT * FROM permissoes ORDER BY id`);
+      resultados.todas_permissoes = todasPermissoes;
+    } catch (e) { resultados.todas_permissoes = `Erro: ${e.message}`; }
+    
+    // 4. Verificar se existe tabela de permissões por user
+    try {
+      const [userPermissoes] = await sequelize.query(`
+        SELECT * FROM information_schema.tables 
+        WHERE table_name LIKE '%user%permiss%' OR table_name LIKE '%utilizador%permiss%'
+      `);
+      resultados.tabelas_user_permissoes = userPermissoes;
+    } catch (e) { resultados.tabelas_user_permissoes = `Erro: ${e.message}`; }
+    
+    res.json({
+      status: '🔐 TESTE PERMISSÕES',
+      user_id: userId,
+      resultados: resultados,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// TESTAR RESPOSTAS DOS POSTS
+app.get('/test-respostas/:postId', async (req, res) => {
+  try {
+    const postId = req.params.postId;
+    console.log(`💬 TESTANDO RESPOSTAS PARA POST ${postId}...`);
+    
+    const resultados = {};
+    
+    // 1. Buscar via tabela respostas
+    try {
+      const [respostas1] = await sequelize.query(`
+        SELECT r.*, u.nome as nome_utilizador
+        FROM respostas r
+        JOIN utilizador u ON r.idutilizador = u.idutilizador
+        WHERE r.idpost = ${postId}
+        ORDER BY r.datahora ASC
+      `);
+      resultados.via_respostas = respostas1;
+    } catch (e) { resultados.via_respostas = `Erro: ${e.message}`; }
+    
+    // 2. Buscar via tabela resposta (singular)
+    try {
+      const [respostas2] = await sequelize.query(`
+        SELECT r.*, u.nome as nome_utilizador
+        FROM resposta r
+        JOIN utilizador u ON r.id_utilizador = u.idutilizador
+        WHERE r.id_post = ${postId}
+        ORDER BY r.data_resposta ASC
+      `);
+      resultados.via_resposta = respostas2;
+    } catch (e) { resultados.via_resposta = `Erro: ${e.message}`; }
+    
+    // 3. Buscar comentários do post
+    try {
+      const [comentarios] = await sequelize.query(`
+        SELECT c.*, u.nome as nome_utilizador
+        FROM comentarios c
+        JOIN utilizador u ON c.id_utilizador = u.idutilizador
+        WHERE c.id_post = ${postId}
+        ORDER BY c.data_comentario ASC
+      `);
+      resultados.via_comentarios = comentarios;
+    } catch (e) { resultados.via_comentarios = `Erro: ${e.message}`; }
+    
+    res.json({
+      status: '💬 TESTE RESPOSTAS',
+      post_id: postId,
+      resultados: resultados,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// TESTAR POSTS DO FORUM
+app.get('/test-posts-forum', async (req, res) => {
+  try {
+    console.log('📋 TESTANDO POSTS DO FORUM...');
+    
+    const resultados = {};
+    
+    // 1. Buscar via tabela post
+    try {
+      const [posts1] = await sequelize.query(`
+        SELECT p.*, u.nome as nome_utilizador
+        FROM post p
+        JOIN utilizador u ON p.idutilizador = u.idutilizador
+        ORDER BY p.datahora DESC
+        LIMIT 10
+      `);
+      resultados.via_post = posts1;
+    } catch (e) { resultados.via_post = `Erro: ${e.message}`; }
+    
+    // 2. Buscar via tabela forum
+    try {
+      const [posts2] = await sequelize.query(`
+        SELECT f.*, u.nome as nome_utilizador
+        FROM forum f
+        JOIN utilizador u ON f.id_utilizador = u.idutilizador
+        ORDER BY f.data_criacao DESC
+        LIMIT 10
+      `);
+      resultados.via_forum = posts2;
+    } catch (e) { resultados.via_forum = `Erro: ${e.message}`; }
+    
+    // 3. Contar respostas por post
+    try {
+      const [contarRespostas] = await sequelize.query(`
+        SELECT idpost, COUNT(*) as total_respostas
+        FROM respostas 
+        GROUP BY idpost
+        ORDER BY idpost
+      `);
+      resultados.contagem_respostas = contarRespostas;
+    } catch (e) { resultados.contagem_respostas = `Erro: ${e.message}`; }
+    
+    res.json({
+      status: '📋 TESTE POSTS FORUM',
+      resultados: resultados,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Root endpoint
 app.get('/', (req, res) => {
   res.json({ 
