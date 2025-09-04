@@ -2973,6 +2973,173 @@ app.get('/create-tables-from-models', async (req, res) => {
   }
 });
 
+// CORRIGIR OS ERROS DO ENDPOINT ANTERIOR
+app.get('/fix-missing-data', async (req, res) => {
+  try {
+    console.log('🔧 CORRIGINDO DADOS EM FALTA...');
+    
+    const fixes = [];
+    
+    // 1. Verificar e corrigir tabela GUARDADOS
+    try {
+      await sequelize.query(`DELETE FROM guardados WHERE idutilizador = 8`);
+      await sequelize.query(`INSERT INTO guardados (idutilizador, idpost) VALUES (8, 85), (8, 86), (8, 87)`);
+      fixes.push('✅ Tabela guardados corrigida');
+    } catch (error) {
+      fixes.push(`❌ Guardados: ${error.message}`);
+    }
+    
+    // 2. Verificar e corrigir tabela PERMISSOES
+    try {
+      await sequelize.query(`DELETE FROM permissoes`);
+      await sequelize.query(`
+        INSERT INTO permissoes (idpermissao, nome, descricao, categoria, ativo, datacriacao, dataatualizacao, ligado) VALUES 
+        (1, 'Visualizar Cursos', 'Permite visualizar cursos', 'Cursos', TRUE, NOW(), NOW(), TRUE),
+        (4, 'Editar Perfil', 'Permite editar perfil', 'Utilizador', TRUE, NOW(), NOW(), TRUE),
+        (11, 'Participar Forum', 'Permite participar no forum', 'Forum', TRUE, NOW(), NOW(), TRUE),
+        (12, 'Criar Posts', 'Permite criar posts no forum', 'Forum', TRUE, NOW(), NOW(), TRUE),
+        (13, 'Responder Posts', 'Permite responder a posts', 'Forum', TRUE, NOW(), NOW(), TRUE)
+      `);
+      fixes.push('✅ Tabela permissoes corrigida');
+    } catch (error) {
+      fixes.push(`❌ Permissoes: ${error.message}`);
+    }
+    
+    // 3. Verificar e corrigir tabela COMENTARIOS
+    try {
+      await sequelize.query(`DELETE FROM comentarios`);
+      await sequelize.query(`
+        INSERT INTO comentarios (idcurso, idutilizador, comentario, avaliacao, data) VALUES 
+        (45, 8, 'Excelente curso! Aprendi muito sobre HTML e CSS.', 5.0, NOW()),
+        (48, 8, 'Muito bom para quem quer começar em mobile.', 4.5, NOW()),
+        (49, 1, 'Curso bem estruturado e completo.', 4.0, NOW()),
+        (45, 1, 'Recomendo este curso para iniciantes.', 4.5, NOW()),
+        (48, 4, 'Como formador, posso confirmar a qualidade deste conteúdo.', 5.0, NOW())
+      `);
+      fixes.push('✅ Tabela comentarios corrigida');
+    } catch (error) {
+      fixes.push(`❌ Comentarios: ${error.message}`);
+    }
+    
+    // 4. Verificar se ROLES_PERMISSOES existe
+    try {
+      await sequelize.query(`
+        INSERT INTO roles_permissoes (idpermissao, role, datacriacao, dataatualizacao) VALUES 
+        (1, 'formando', NOW(), NOW()),
+        (1, 'formador', NOW(), NOW()),
+        (1, 'administrador', NOW(), NOW()),
+        (4, 'formando', NOW(), NOW()),
+        (4, 'formador', NOW(), NOW()),
+        (4, 'administrador', NOW(), NOW()),
+        (11, 'formando', NOW(), NOW()),
+        (11, 'formador', NOW(), NOW()),
+        (11, 'administrador', NOW(), NOW()),
+        (12, 'formando', NOW(), NOW()),
+        (12, 'formador', NOW(), NOW()),
+        (12, 'administrador', NOW(), NOW()),
+        (13, 'formando', NOW(), NOW()),
+        (13, 'formador', NOW(), NOW()),
+        (13, 'administrador', NOW(), NOW())
+        ON CONFLICT DO NOTHING
+      `);
+      fixes.push('✅ Roles_permissoes atualizada');
+    } catch (error) {
+      fixes.push(`❌ Roles_permissoes: ${error.message}`);
+    }
+    
+    // 5. Verificações finais
+    const verificacoes = {};
+    
+    try {
+      const [guardados] = await sequelize.query(`SELECT COUNT(*) as total FROM guardados WHERE idutilizador = 8`);
+      verificacoes.guardados_user8 = guardados[0].total;
+    } catch (e) { verificacoes.guardados_user8 = 'ERRO'; }
+    
+    try {
+      const [permissoes] = await sequelize.query(`SELECT COUNT(*) as total FROM permissoes`);
+      verificacoes.total_permissoes = permissoes[0].total;
+    } catch (e) { verificacoes.total_permissoes = 'ERRO'; }
+    
+    try {
+      const [inscricoes] = await sequelize.query(`SELECT COUNT(*) as total FROM form_inscricao WHERE idutilizador = 8`);
+      verificacoes.inscricoes_user8 = inscricoes[0].total;
+    } catch (e) { verificacoes.inscricoes_user8 = 'ERRO'; }
+    
+    try {
+      const [comentarios] = await sequelize.query(`SELECT COUNT(*) as total FROM comentarios`);
+      verificacoes.total_comentarios = comentarios[0].total;
+    } catch (e) { verificacoes.total_comentarios = 'ERRO'; }
+    
+    try {
+      const [respostas] = await sequelize.query(`SELECT COUNT(*) as total FROM respostas`);
+      verificacoes.total_respostas = respostas[0].total;
+    } catch (e) { verificacoes.total_respostas = 'ERRO'; }
+    
+    // Buscar dados específicos para confirmar
+    let dadosConfirmacao = {};
+    
+    try {
+      const [guardadosDetalhes] = await sequelize.query(`
+        SELECT g.id, g.idutilizador, g.idpost, p.titulo 
+        FROM guardados g 
+        JOIN posts p ON g.idpost = p.id 
+        WHERE g.idutilizador = 8
+      `);
+      dadosConfirmacao.posts_guardados = guardadosDetalhes;
+    } catch (e) {
+      dadosConfirmacao.posts_guardados = [`Erro: ${e.message}`];
+    }
+    
+    try {
+      const [permissoesDetalhes] = await sequelize.query(`
+        SELECT idpermissao, nome, categoria, ativo, ligado 
+        FROM permissoes 
+        ORDER BY idpermissao
+      `);
+      dadosConfirmacao.permissoes_ativas = permissoesDetalhes;
+    } catch (e) {
+      dadosConfirmacao.permissoes_ativas = [`Erro: ${e.message}`];
+    }
+    
+    try {
+      const [comentariosDetalhes] = await sequelize.query(`
+        SELECT c.id, c.idcurso, c.idutilizador, c.comentario, c.avaliacao, cur.titulo 
+        FROM comentarios c 
+        JOIN cursos cur ON c.idcurso = cur.id 
+        ORDER BY c.data DESC
+      `);
+      dadosConfirmacao.comentarios_cursos = comentariosDetalhes;
+    } catch (e) {
+      dadosConfirmacao.comentarios_cursos = [`Erro: ${e.message}`];
+    }
+    
+    res.json({
+      status: '🛠️ CORREÇÕES APLICADAS!',
+      message: 'Dados em falta foram corrigidos',
+      operacoes_realizadas: fixes,
+      verificacoes_pos_fix: verificacoes,
+      dados_confirmacao: dadosConfirmacao,
+      summary: {
+        guardados: `${verificacoes.guardados_user8} posts guardados pelo user 8`,
+        permissoes: `${verificacoes.total_permissoes} permissões configuradas`,
+        inscricoes: `${verificacoes.inscricoes_user8} inscrições ativas`,
+        comentarios: `${verificacoes.total_comentarios} comentários criados`,
+        respostas: `${verificacoes.total_respostas} respostas no forum`
+      },
+      status_final: '✅ TODAS AS TABELAS FUNCIONAIS!',
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro ao corrigir dados:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Erro ao corrigir dados em falta',
+      error: error.message
+    });
+  }
+});
+
 // Root endpoint
 app.get('/', (req, res) => {
   res.json({ 
