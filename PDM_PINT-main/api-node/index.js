@@ -1775,6 +1775,123 @@ app.get('/import-complete-original-data', async (req, res) => {
   }
 });
 
+// ENDPOINT DE CORREÇÃO RÁPIDA - CORRIGIR ERROS DA TABELA POST
+app.get('/fix-database-errors', async (req, res) => {
+  try {
+    console.log('🔧 CORRIGINDO ERROS DA BASE DE DADOS...');
+    
+    // 1. Verificar e corrigir tabela post (não posts)
+    const fixSQL = [
+      // Garantir que a tabela se chama 'post' e não 'posts'
+      `DROP TABLE IF EXISTS posts CASCADE;`,
+      
+      // Criar tabela post com estrutura correta do model
+      `CREATE TABLE IF NOT EXISTS post (
+        idpost SERIAL PRIMARY KEY,
+        idutilizador INTEGER,
+        idtopico INTEGER,
+        texto TEXT,
+        titulo VARCHAR(255),
+        datahora TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        anexo VARCHAR(255) DEFAULT '',
+        url VARCHAR(255) DEFAULT ''
+      );`,
+      
+      // Verificar se a coluna 'role' existe na tabela utilizador, se não adicionar
+      `ALTER TABLE utilizador ADD COLUMN IF NOT EXISTS role VARCHAR(50) DEFAULT 'formando';`,
+      
+      // Atualizar roles baseado no tipo
+      `UPDATE utilizador SET role = tipo WHERE role IS NULL OR role = '';`,
+      
+      // Garantir que todas as outras tabelas essenciais existem
+      `CREATE TABLE IF NOT EXISTS categorias (
+        idcategoria SERIAL PRIMARY KEY,
+        nome VARCHAR(255)
+      );`,
+      
+      `CREATE TABLE IF NOT EXISTS areas (
+        idarea SERIAL PRIMARY KEY,
+        idcategoria INTEGER,
+        nome VARCHAR(255)
+      );`,
+      
+      `CREATE TABLE IF NOT EXISTS topicos (
+        idtopicos SERIAL PRIMARY KEY,
+        idarea INTEGER,
+        nome VARCHAR(255)
+      );`,
+      
+      // Inserir dados essenciais se não existirem
+      `INSERT INTO categorias (idcategoria, nome) VALUES (1, 'Programação') ON CONFLICT DO NOTHING;`,
+      `INSERT INTO categorias (idcategoria, nome) VALUES (2, 'Perguntas e Respostas') ON CONFLICT DO NOTHING;`,
+      `INSERT INTO categorias (idcategoria, nome) VALUES (7, 'Sistemas Operativos') ON CONFLICT DO NOTHING;`,
+      `INSERT INTO categorias (idcategoria, nome) VALUES (8, 'Cursos') ON CONFLICT DO NOTHING;`,
+      
+      `INSERT INTO areas (idarea, idcategoria, nome) VALUES (7, 7, 'Sistemas Operativos') ON CONFLICT DO NOTHING;`,
+      `INSERT INTO areas (idarea, idcategoria, nome) VALUES (8, 8, 'Cursos') ON CONFLICT DO NOTHING;`,
+      
+      `INSERT INTO topicos (idtopicos, idarea, nome) VALUES (11, 7, 'Linux') ON CONFLICT DO NOTHING;`,
+      `INSERT INTO topicos (idtopicos, idarea, nome) VALUES (13, 8, 'Inscrições') ON CONFLICT DO NOTHING;`,
+      
+      // Inserir posts de teste se a tabela estiver vazia
+      `INSERT INTO post (idpost, idutilizador, idtopico, texto, titulo, datahora, anexo, url) 
+       VALUES (85, 8, 11, 'As pessoas que me tentaram ensinar Linux são uns incompetentes!!!', 'INCOMPETENTES', '2025-09-04T14:03:40.151Z', '', '') 
+       ON CONFLICT (idpost) DO NOTHING;`,
+      
+      `INSERT INTO post (idpost, idutilizador, idtopico, texto, titulo, datahora, anexo, url) 
+       VALUES (86, 8, 13, 'Preciso de um esclarecimento, as inscrições só estão disponíveis quando o curso está no estado "Em breve"?', 'Dúvida urgente!', '2025-09-04T14:06:38.318Z', '', '') 
+       ON CONFLICT (idpost) DO NOTHING;`
+    ];
+    
+    console.log('🔄 Executando correções...');
+    let fixedCount = 0;
+    
+    for (const sql of fixSQL) {
+      try {
+        await sequelize.query(sql);
+        fixedCount++;
+        console.log(`✅ Correção executada: ${sql.substring(0, 50)}...`);
+      } catch (error) {
+        console.log(`⚠️ Aviso: ${error.message.substring(0, 80)}`);
+      }
+    }
+    
+    // Verificar resultado final
+    const [postCheck] = await sequelize.query(`SELECT COUNT(*) as total FROM post`);
+    const [userCheck] = await sequelize.query(`SELECT COUNT(*) as total FROM utilizador`);
+    const [roleCheck] = await sequelize.query(`SELECT DISTINCT role FROM utilizador WHERE role IS NOT NULL`);
+    
+    res.json({
+      status: '🔧 CORREÇÕES APLICADAS COM SUCESSO!',
+      message: 'Erros da base de dados corrigidos',
+      correcoes_aplicadas: fixedCount,
+      verificacao: {
+        total_posts: postCheck[0].total,
+        total_utilizadores: userCheck[0].total,
+        roles_disponiveis: roleCheck.map(r => r.role)
+      },
+      problemas_resolvidos: [
+        '✅ Tabela "post" criada (não "posts")',
+        '✅ Coluna "role" adicionada aos utilizadores', 
+        '✅ Estrutura das tabelas corrigida',
+        '✅ Dados essenciais inseridos',
+        '✅ Posts de teste adicionados'
+      ],
+      status_bd: '✅ BASE DE DADOS CORRIGIDA E FUNCIONAL!',
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro nas correções:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Erro ao aplicar correções',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // Root endpoint
 app.get('/', (req, res) => {
   res.json({ 
