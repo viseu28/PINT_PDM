@@ -1,24 +1,24 @@
 module.exports = (db) => {
   const router = require('express').Router();
 
-  // GET /permissoes/:id
+  // GET /permissoes/:id - BUSCA APENAS NA TABELA roles_permissoes
   router.get('/:id', async (req, res) => {
     try {
       const { id } = req.params;
-      const permissao = await db.permissoes.findByPk(id, {
-        attributes: ['idpermissao', 'nome', 'descricao', 'categoria', 'ativo', 'ligado'],
-        include: [
-          {
-            model: db.roles_permissoes,
-            as: 'rolesPermissoes',
-            attributes: ['idrole_permissao', 'role', 'datacriacao', 'dataatualizacao']
-          }
-        ]
+      
+      // Buscar apenas na tabela roles_permissoes
+      const rolesPermissoes = await db.roles_permissoes.findAll({
+        where: { 
+          idpermissao: id 
+        },
+        attributes: ['idrole_permissao', 'role', 'datacriacao', 'dataatualizacao']
       });
 
-      if (!permissao) {
-        return res.status(404).json({ erro: 'Permissão não encontrada' });
-      }
+      // Simular a estrutura esperada pela função Flutter
+      const permissao = {
+        idpermissao: parseInt(id),
+        rolesPermissoes: rolesPermissoes
+      };
 
       res.json(permissao);
     } catch (err) {
