@@ -339,13 +339,26 @@ router.post('/:idProjeto/submeter', upload.single('arquivo'), async (req, res) =
 
       // Se é uma URL do Cloudinary (ou qualquer URL externa)
       if (submissao.ficheiro_url.startsWith('http')) {
-        console.log(`🔗 [DOWNLOAD] Redirecionando para Cloudinary: ${submissao.ficheiro_url}`);
+        console.log(`🔗 [DOWNLOAD] URL do Cloudinary detectada: ${submissao.ficheiro_url}`);
+        
+        // Para arquivos raw do Cloudinary, a URL já está pronta para download direto
+        // Vamos modificar a URL para forçar download adicionando parâmetros
+        let downloadUrl = submissao.ficheiro_url;
+        
+        // Se for Cloudinary, adicionar parâmetros para forçar download
+        if (downloadUrl.includes('cloudinary.com')) {
+          // Verifica se já tem parâmetros
+          const separator = downloadUrl.includes('?') ? '&' : '?';
+          downloadUrl += `${separator}fl_attachment`;
+          console.log(`🔗 [DOWNLOAD] URL modificada para forçar download: ${downloadUrl}`);
+        }
         
         // Definir headers para forçar download
         res.setHeader('Content-Disposition', `attachment; filename="${submissao.ficheiro_nome_original}"`);
+        res.setHeader('Content-Type', 'application/octet-stream');
         
         // Redirecionar para a URL do Cloudinary
-        return res.redirect(submissao.ficheiro_url);
+        return res.redirect(downloadUrl);
       }
 
       // Fallback para ficheiros locais (caso ainda existam alguns)

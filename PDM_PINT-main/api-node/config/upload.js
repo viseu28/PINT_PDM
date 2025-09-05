@@ -21,7 +21,7 @@ const storage = new CloudinaryStorage({
   params: {
     folder: 'uploads',
     allowed_formats: ['jpg', 'jpeg', 'png', 'pdf', 'doc', 'docx', 'zip', 'txt'],
-    resource_type: 'auto'
+    resource_type: 'raw' // Força upload como raw para todos os arquivos
   }
 });
 
