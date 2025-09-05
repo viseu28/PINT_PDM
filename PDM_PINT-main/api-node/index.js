@@ -5623,6 +5623,62 @@ app.get('/fix-table-structures', async (req, res) => {
   }
 });
 
+// 🚨 ENDPOINT EMERGÊNCIA FINAL - CORRIGIR TODAS AS TABELAS
+app.get('/emergency-fix-all', async (req, res) => {
+    try {
+        console.log('🚨 CORRIGINDO TODAS AS ESTRUTURAS URGENTEMENTE...');
+        
+        // 1. Verificar estrutura de todas as tabelas problemáticas
+        const tabelas = ['permissoes', 'likes_forum', 'utilizador', 'guardados'];
+        const estruturas = {};
+        
+        for (const tabela of tabelas) {
+            try {
+                const [structure] = await sequelize.query(`
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name = '${tabela}' 
+                    AND table_schema = 'public'
+                `);
+                estruturas[tabela] = structure.map(col => col.column_name);
+                console.log(`📊 ${tabela}:`, estruturas[tabela]);
+            } catch (error) {
+                console.log(`❌ Tabela ${tabela} não encontrada ou erro:`, error.message);
+                estruturas[tabela] = 'ERROR';
+            }
+        }
+        
+        // 2. Adicionar colunas em falta se necessário
+        const fixes = [];
+        
+        // FCM Token no utilizador
+        if (estruturas.utilizador && !estruturas.utilizador.includes('fcm_token')) {
+            try {
+                await sequelize.query('ALTER TABLE utilizador ADD COLUMN fcm_token TEXT');
+                fixes.push('✅ Adicionada coluna fcm_token à tabela utilizador');
+            } catch (error) {
+                fixes.push('❌ Erro ao adicionar fcm_token: ' + error.message);
+            }
+        }
+        
+        res.json({
+            success: true,
+            message: 'Análise de emergência concluída',
+            estruturas: estruturas,
+            fixes: fixes,
+            detalhes: 'Verificação completa das tabelas problemáticas'
+        });
+        
+    } catch (error) {
+        console.error('❌ Erro na correção de emergência:', error.message);
+        res.status(500).json({ 
+            success: false, 
+            error: error.message,
+            details: error.toString()
+        });
+    }
+});
+
 // Root endpoint
 app.get('/', (req, res) => {
   res.json({ 
