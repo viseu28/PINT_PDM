@@ -4840,6 +4840,44 @@ app.get('/user-permissions-real/:id', async (req, res) => {
   }
 });
 
+// LIMPAR inscrições incorretas - manter só as reais
+app.get('/fix-inscricoes-render', async (req, res) => {
+  try {
+    console.log('🧹 LIMPANDO INSCRIÇÕES INCORRETAS DO RENDER...');
+    
+    const fixes = [];
+    
+    // 1. Ver o que existe atualmente
+    const [atual] = await sequelize.query('SELECT * FROM form_inscricao WHERE idutilizador = 8');
+    fixes.push(`📊 Antes: ${atual.length} inscrições encontradas`);
+    
+    // 2. REMOVER inscrições incorretas (manter só a do curso 45)
+    await sequelize.query(`
+      DELETE FROM form_inscricao 
+      WHERE idutilizador = 8 AND idcurso != 45
+    `);
+    fixes.push('🗑️ Removidas inscrições incorretas (cursos 48 e 49)');
+    
+    // 3. Verificar se sobrou só a inscrição correta
+    const [depois] = await sequelize.query('SELECT * FROM form_inscricao WHERE idutilizador = 8');
+    fixes.push(`✅ Depois: ${depois.length} inscrição (só curso 45)`);
+    
+    // 4. Mostrar a inscrição que ficou
+    fixes.push(`📋 Inscrição mantida: ${JSON.stringify(depois[0])}`);
+    
+    res.json({
+      success: true,
+      message: '🧹 INSCRIÇÕES INCORRETAS REMOVIDAS!',
+      fixes: fixes,
+      inscricao_final: depois[0]
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro ao limpar inscrições:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // DEBUG: Verificar problemas com inscrições em cursos
 app.get('/debug-inscricoes/:userId', async (req, res) => {
   try {
