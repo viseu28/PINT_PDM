@@ -3897,6 +3897,212 @@ app.get('/investigate-original-data', async (req, res) => {
   }
 });
 
+// ENDPOINTS COM NOMES EXATOS DOS SCRIPTS PGADMIN
+app.get('/fix-with-exact-scripts', async (req, res) => {
+  try {
+    console.log('🔧 USANDO NOMES EXATOS DOS SCRIPTS...');
+    
+    const fixes = [];
+    const userId = 8;
+    
+    // 1. PERMISSÕES com nomes EXATOS do script
+    let permissoesScript = [];
+    try {
+      const [permissoes] = await sequelize.query(`
+        SELECT rp.idrole_permissao, rp.role, rp.idpermissao, p.nome, p.descricao, p.categoria
+        FROM roles_permissoes rp
+        JOIN permissoes p ON rp.idpermissao = p.idpermissao
+        WHERE rp.role = 'formando'
+        ORDER BY rp.idpermissao
+      `);
+      permissoesScript = permissoes;
+      fixes.push(`✅ Permissões 'formando' (script): ${permissoes.length} encontradas`);
+    } catch (error) {
+      fixes.push(`❌ Erro permissões script: ${error.message}`);
+    }
+    
+    // 2. RESPOSTAS com nomes EXATOS do script
+    let respostasScript = [];
+    try {
+      const [respostas] = await sequelize.query(`
+        SELECT r.idresposta, r.texto, r.datahora, r.idpost, r.idutilizador, r.autor, r.url, r.anexo
+        FROM resposta r
+        WHERE r.idpost IN (85, 86)
+        ORDER BY r.datahora ASC
+      `);
+      respostasScript = respostas;
+      fixes.push(`✅ Respostas (script): ${respostas.length} encontradas`);
+    } catch (error) {
+      fixes.push(`❌ Erro respostas script: ${error.message}`);
+    }
+    
+    // 3. UTILIZADOR com fcm_token do script
+    let utilizadorScript = {};
+    try {
+      const [user] = await sequelize.query(`
+        SELECT idutilizador, nome, email, tipo, fcm_token, estado
+        FROM utilizador 
+        WHERE idutilizador = ${userId}
+      `);
+      utilizadorScript = user[0] || {};
+      fixes.push(`✅ User com fcm_token (script): ${user[0] ? 'encontrado' : 'não encontrado'}`);
+    } catch (error) {
+      fixes.push(`❌ Erro user script: ${error.message}`);
+    }
+    
+    // 4. VERIFICAR se tabelas existem com nomes do script
+    let verificacaoTabelas = {};
+    try {
+      const [tabelas] = await sequelize.query(`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name IN ('permissoes', 'resposta', 'utilizador', 'roles_permissoes')
+        ORDER BY table_name
+      `);
+      verificacaoTabelas.tabelas_existem = tabelas.map(t => t.table_name);
+    } catch (e) { verificacaoTabelas.tabelas_existem = `Erro: ${e.message}`; }
+    
+    // 5. DADOS QUE FUNCIONAM (inscrições e posts)
+    let dadosFuncionam = {};
+    try {
+      const [inscricoes] = await sequelize.query(`
+        SELECT fi.idinscricao, fi.idutilizador, fi.idcurso, c.titulo, fi.estado
+        FROM form_inscricao fi
+        JOIN cursos c ON fi.idcurso = c.id
+        WHERE fi.idutilizador = ${userId} AND fi.estado = TRUE
+      `);
+      dadosFuncionam.inscricoes = inscricoes;
+      
+      const [posts] = await sequelize.query(`
+        SELECT idpost, titulo, idutilizador
+        FROM post 
+        WHERE idutilizador = ${userId}
+      `);
+      dadosFuncionam.posts = posts;
+      
+      fixes.push(`✅ Dados que funcionam: ${inscricoes.length} inscrições + ${posts.length} posts`);
+    } catch (error) {
+      fixes.push(`❌ Erro dados funcionam: ${error.message}`);
+    }
+    
+    res.json({
+      status: '🔧 TESTE COM SCRIPTS EXATOS',
+      message: 'Usando nomes exatos dos scripts pgAdmin',
+      operacoes: fixes,
+      dados_scripts: {
+        utilizador_com_fcm: utilizadorScript,
+        permissoes_formando: permissoesScript,
+        respostas_posts: respostasScript,
+        verificacao_tabelas: verificacaoTabelas,
+        dados_que_funcionam: dadosFuncionam
+      },
+      conclusao: {
+        scripts_vs_render: 'Verificar se BD no Render corresponde aos scripts',
+        tabelas_problemáticas: ['permissoes', 'resposta', 'roles_permissoes'],
+        dados_funcionais: ['form_inscricao', 'cursos', 'post', 'utilizador']
+      },
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro nos scripts exatos:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Erro ao usar scripts exatos',
+      error: error.message
+    });
+  }
+});
+
+// CRIAR TABELAS USANDO OS SCRIPTS EXATOS (se não existirem)
+app.get('/create-missing-tables', async (req, res) => {
+  try {
+    console.log('🏗️ CRIANDO TABELAS EM FALTA...');
+    
+    const criacao = [];
+    
+    // 1. Verificar e criar PERMISSOES se não existir corretamente
+    try {
+      await sequelize.query(`
+        CREATE TABLE IF NOT EXISTS permissoes (
+          idpermissao integer NOT NULL DEFAULT nextval('permissoes_idpermissao_seq'::regclass),
+          nome character varying(100) NOT NULL,
+          descricao text,
+          categoria character varying(50) NOT NULL,
+          ativo boolean DEFAULT true,
+          datacriacao timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+          dataatualizacao timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+          ligado boolean DEFAULT true,
+          CONSTRAINT permissoes_pkey PRIMARY KEY (idpermissao),
+          CONSTRAINT permissoes_nome_key UNIQUE (nome)
+        )
+      `);
+      criacao.push('✅ Tabela permissoes verificada/criada');
+    } catch (error) {
+      criacao.push(`❌ Erro permissoes: ${error.message}`);
+    }
+    
+    // 2. Adicionar fcm_token ao utilizador se não existir
+    try {
+      await sequelize.query(`
+        ALTER TABLE utilizador 
+        ADD COLUMN IF NOT EXISTS fcm_token text
+      `);
+      criacao.push('✅ Coluna fcm_token verificada/adicionada');
+    } catch (error) {
+      criacao.push(`❌ Erro fcm_token: ${error.message}`);
+    }
+    
+    // 3. Verificar se resposta tem todas as colunas
+    try {
+      await sequelize.query(`
+        ALTER TABLE resposta 
+        ADD COLUMN IF NOT EXISTS texto text,
+        ADD COLUMN IF NOT EXISTS autor character varying(100) DEFAULT '',
+        ADD COLUMN IF NOT EXISTS url text,
+        ADD COLUMN IF NOT EXISTS anexo text
+      `);
+      criacao.push('✅ Colunas da resposta verificadas/adicionadas');
+    } catch (error) {
+      criacao.push(`❌ Erro resposta: ${error.message}`);
+    }
+    
+    // 4. Testar queries após criação
+    const testes = {};
+    try {
+      const [testPerm] = await sequelize.query(`SELECT COUNT(*) as total FROM permissoes`);
+      testes.permissoes_count = testPerm[0].total;
+    } catch (e) { testes.permissoes_count = 'ERRO'; }
+    
+    try {
+      const [testResp] = await sequelize.query(`SELECT COUNT(*) as total FROM resposta`);
+      testes.resposta_count = testResp[0].total;
+    } catch (e) { testes.resposta_count = 'ERRO'; }
+    
+    try {
+      const [testUser] = await sequelize.query(`SELECT idutilizador, fcm_token FROM utilizador WHERE idutilizador = 8`);
+      testes.user_fcm = testUser[0] || 'ERRO';
+    } catch (e) { testes.user_fcm = 'ERRO'; }
+    
+    res.json({
+      status: '🏗️ TABELAS CRIADAS/VERIFICADAS',
+      message: 'Estruturas corrigidas conforme scripts',
+      operacoes_criacao: criacao,
+      testes_pos_criacao: testes,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro na criação:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Erro ao criar tabelas',
+      error: error.message
+    });
+  }
+});
+
 // VERIFICAR ESTRUTURA EXATA DAS TABELAS PROBLEMÁTICAS
 app.get('/verify-exact-schemas', async (req, res) => {
   try {
