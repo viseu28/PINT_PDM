@@ -5053,6 +5053,46 @@ app.get('/force-sync-now', async (req, res) => {
   }
 });
 
+// Endpoint de DEBUG para sincronização
+app.get('/debug-sync', async (req, res) => {
+  try {
+    console.log('🔍 DEBUG: Iniciando verificação de sincronização...');
+    
+    const localhostDB = new Sequelize('projeto_pint', 'postgres', 'root', {
+      host: 'localhost',
+      dialect: 'postgres',
+      logging: false,
+      pool: { max: 1, min: 0, acquire: 5000, idle: 1000 }
+    });
+    
+    await localhostDB.authenticate();
+    console.log('✅ DEBUG: Conectado ao localhost');
+    
+    // Verificar cursos no localhost
+    const [localCursos] = await localhostDB.query('SELECT id, titulo FROM cursos ORDER BY id');
+    console.log('📊 DEBUG: Cursos no localhost:', localCursos);
+    
+    // Verificar cursos no render
+    const [renderCursos] = await sequelize.query('SELECT id, titulo FROM cursos ORDER BY id');
+    console.log('📊 DEBUG: Cursos no render:', renderCursos);
+    
+    await localhostDB.close();
+    
+    res.json({
+      success: true,
+      localhost_courses: localCursos,
+      render_courses: renderCursos,
+      localhost_count: localCursos.length,
+      render_count: renderCursos.length,
+      sync_needed: localCursos.length !== renderCursos.length
+    });
+    
+  } catch (error) {
+    console.log('❌ DEBUG ERROR:', error.message);
+    res.status(500).json({ error: error.message, stack: error.stack });
+  }
+});
+
 // SINCRONIZAÇÃO EFICIENTE COM POSTGRESQL LISTEN/NOTIFY
 let localhostConnection = null;
 let isListening = false;
