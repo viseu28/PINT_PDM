@@ -3897,12 +3897,93 @@ app.get('/investigate-original-data', async (req, res) => {
   }
 });
 
-// ENDPOINT SIMPLES QUE USA APENAS O TIPO DO USER (SISTEMA REAL)
-app.get('/simple-user-access/:id', async (req, res) => {
+// VERIFICAR O QUE O USER 8 REALMENTE PODE FAZER NA BD
+app.get('/check-user8-real-capabilities', async (req, res) => {
+  try {
+    console.log('🔍 VERIFICANDO CAPACIDADES REAIS DO USER 8...');
+    
+    const capacidades = {};
+    
+    // 1. Ver posts que o user 8 criou
+    try {
+      const [postsUser8] = await sequelize.query(`
+        SELECT idpost, titulo, texto, datahora 
+        FROM post 
+        WHERE idutilizador = 8 
+        ORDER BY datahora DESC
+      `);
+      capacidades.posts_criados = postsUser8;
+      capacidades.pode_criar_posts = postsUser8.length > 0;
+    } catch (e) { capacidades.posts_criados = `Erro: ${e.message}`; }
+    
+    // 2. Ver respostas que o user 8 fez
+    try {
+      const [respostasUser8] = await sequelize.query(`
+        SELECT idresposta, idpost, texto, datahora 
+        FROM respostas 
+        WHERE idutilizador = 8 
+        ORDER BY datahora DESC
+      `);
+      capacidades.respostas_feitas = respostasUser8;
+      capacidades.pode_responder = respostasUser8.length > 0;
+    } catch (e) { capacidades.respostas_feitas = `Erro: ${e.message}`; }
+    
+    // 3. Ver inscrições que o user 8 tem
+    try {
+      const [inscricoesUser8] = await sequelize.query(`
+        SELECT fi.idinscricao, fi.idcurso, c.titulo, fi.estado 
+        FROM form_inscricao fi 
+        JOIN cursos c ON fi.idcurso = c.id 
+        WHERE fi.idutilizador = 8 
+        ORDER BY fi.data DESC
+      `);
+      capacidades.inscricoes_feitas = inscricoesUser8;
+      capacidades.pode_inscrever = inscricoesUser8.length > 0;
+    } catch (e) { capacidades.inscricoes_feitas = `Erro: ${e.message}`; }
+    
+    // 4. Ver outros formandos e o que eles fazem
+    try {
+      const [outrosFormandos] = await sequelize.query(`
+        SELECT u.idutilizador, u.nome, 
+               (SELECT COUNT(*) FROM post WHERE idutilizador = u.idutilizador) as posts,
+               (SELECT COUNT(*) FROM respostas WHERE idutilizador = u.idutilizador) as respostas
+        FROM utilizador u 
+        WHERE u.tipo = 'formando'
+        ORDER BY u.idutilizador
+      `);
+      capacidades.outros_formandos = outrosFormandos;
+    } catch (e) { capacidades.outros_formandos = `Erro: ${e.message}`; }
+    
+    res.json({
+      status: '🔍 CAPACIDADES REAIS DO USER 8',
+      user_id: 8,
+      user_type: 'formando',
+      capacidades_baseadas_na_bd: capacidades,
+      conclusao: {
+        pode_criar_posts: capacidades.pode_criar_posts,
+        pode_responder_posts: capacidades.pode_responder,
+        pode_inscrever_cursos: capacidades.pode_inscrever,
+        evidencia: 'Baseado no que realmente existe na BD'
+      },
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro ao verificar capacidades:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Erro ao verificar capacidades reais',
+      error: error.message
+    });
+  }
+});
+
+// ENDPOINT QUE RETORNA APENAS DADOS REAIS DA BD (SEM INVENTAR PERMISSÕES)
+app.get('/real-user-data/:id', async (req, res) => {
   try {
     const userId = req.params.id;
     
-    // Buscar tipo do utilizador
+    // Buscar APENAS dados reais do utilizador
     const [user] = await sequelize.query(`SELECT idutilizador, nome, tipo FROM utilizador WHERE idutilizador = ${userId}`);
     
     if (!user[0]) {
@@ -3911,72 +3992,32 @@ app.get('/simple-user-access/:id', async (req, res) => {
     
     const utilizador = user[0];
     
-    // Sistema simples baseado no tipo
-    let permissoes = {};
+    // Verificar se o user tem posts criados (prova real de que pode criar)
+    const [postsUser] = await sequelize.query(`SELECT COUNT(*) as total FROM post WHERE idutilizador = ${userId}`);
+    const temPosts = postsUser[0].total > 0;
     
-    switch (utilizador.tipo) {
-      case 'formando':
-        permissoes = {
-          can_view_courses: true,
-          can_enroll_courses: true,
-          can_view_forum: true,
-          can_participate_forum: true,
-          can_edit_profile: true,
-          can_create_posts: false,      // Formandos normalmente não criam posts
-          can_reply_posts: true,
-          can_manage_content: false,
-          can_manage_users: false
-        };
-        break;
-        
-      case 'formador':
-        permissoes = {
-          can_view_courses: true,
-          can_enroll_courses: true,
-          can_view_forum: true,
-          can_participate_forum: true,
-          can_edit_profile: true,
-          can_create_posts: true,
-          can_reply_posts: true,
-          can_manage_content: true,     // Formadores gerem conteúdo
-          can_manage_users: false
-        };
-        break;
-        
-      case 'administrador':
-        permissoes = {
-          can_view_courses: true,
-          can_enroll_courses: true,
-          can_view_forum: true,
-          can_participate_forum: true,
-          can_edit_profile: true,
-          can_create_posts: true,
-          can_reply_posts: true,
-          can_manage_content: true,
-          can_manage_users: true        // Só admins gerem users
-        };
-        break;
-        
-      default:
-        permissoes = {
-          can_view_courses: false,
-          can_enroll_courses: false,
-          can_view_forum: false,
-          can_participate_forum: false,
-          can_edit_profile: false,
-          can_create_posts: false,
-          can_reply_posts: false,
-          can_manage_content: false,
-          can_manage_users: false
-        };
-    }
+    // Verificar se o user tem respostas (prova real de que pode responder)
+    const [respostasUser] = await sequelize.query(`SELECT COUNT(*) as total FROM respostas WHERE idutilizador = ${userId}`);
+    const temRespostas = respostasUser[0].total > 0;
     
+    // Verificar se o user tem inscrições (prova real de que pode inscrever-se)
+    const [inscricoesUser] = await sequelize.query(`SELECT COUNT(*) as total FROM form_inscricao WHERE idutilizador = ${userId}`);
+    const temInscricoes = inscricoesUser[0].total > 0;
+    
+    // Dados APENAS baseados na BD real
     res.json({
       user_id: userId,
       user_info: utilizador,
-      access_type: 'simple_role_based',
-      permissions: permissoes,
-      message: `Acesso baseado no tipo: ${utilizador.tipo}`,
+      evidencias_reais: {
+        tem_posts_criados: temPosts,
+        total_posts: postsUser[0].total,
+        tem_respostas: temRespostas,
+        total_respostas: respostasUser[0].total,
+        tem_inscricoes: temInscricoes,
+        total_inscricoes: inscricoesUser[0].total
+      },
+      conclusao: `User ${utilizador.nome} (${utilizador.tipo}) tem atividade real na BD`,
+      message: 'Dados baseados APENAS na tua base de dados real',
       timestamp: new Date().toISOString()
     });
     
