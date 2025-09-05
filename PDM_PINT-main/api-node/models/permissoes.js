@@ -1,7 +1,7 @@
 const Sequelize = require('sequelize');
 module.exports = function(sequelize, DataTypes) {
   const Permissao = sequelize.define('permissoes', {
-    idpermissao: {
+    id: {
       autoIncrement: true,
       type: DataTypes.INTEGER,
       allowNull: false,
@@ -45,7 +45,7 @@ module.exports = function(sequelize, DataTypes) {
   Permissao.associate = function(models) {
     // Uma permissão pode estar atribuída a vários roles
     Permissao.hasMany(models.roles_permissoes, {
-      foreignKey: 'idpermissao',
+      foreignKey: 'id_permissao',
       as: 'rolesPermissoes'
     });
   };

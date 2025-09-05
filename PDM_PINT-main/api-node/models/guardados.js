@@ -6,13 +6,17 @@ module.exports = function (sequelize, DataTypes) {
       allowNull: false,
       primaryKey: true
     },
-    idutilizador: {
+    id_utilizador: {
       type: DataTypes.INTEGER,
       allowNull: false
     },
-    idpost: {
+    id_curso: {
       type: DataTypes.INTEGER,
       allowNull: false
+    },
+    data_guardado: {
+      type: DataTypes.DATE,
+      allowNull: true
     }
   }, {
     tableName: 'guardados',
@@ -22,15 +26,15 @@ module.exports = function (sequelize, DataTypes) {
 
   // Definir associações
   Guardado.associate = function(models) {
-    // Um guardado pertence a um post
-    Guardado.belongsTo(models.post, {
-      foreignKey: 'idpost',
-      as: 'post'
+    // Um guardado pertence a um curso
+    Guardado.belongsTo(models.cursos, {
+      foreignKey: 'id_curso',
+      as: 'curso'
     });
     
     // Um guardado pertence a um utilizador
     Guardado.belongsTo(models.utilizador, {
-      foreignKey: 'idutilizador',
+      foreignKey: 'id_utilizador',
       as: 'utilizador'
     });
   };

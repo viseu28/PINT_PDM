@@ -32,7 +32,12 @@ module.exports = (db) => {
                 }
             }
             
-            await LikesForum.upsert({ idutilizador, idpost, idresposta, tipo });
+            await LikesForum.upsert({ 
+                id_utilizador: idutilizador, 
+                id_post: idpost, 
+                idresposta, 
+                data_like: new Date() 
+            });
             res.status(201).json({ message: 'Like/dislike registado!' });
         } catch (err) {
             console.error('Erro ao registar like/dislike:', err);
@@ -45,8 +50,8 @@ module.exports = (db) => {
         const { idutilizador, idpost, idresposta } = req.body;
         try {
             // Construir a condição WHERE baseada nos parâmetros fornecidos
-            const whereCondition = { idutilizador };
-            if (idpost) whereCondition.idpost = idpost;
+            const whereCondition = { id_utilizador: idutilizador };
+            if (idpost) whereCondition.id_post = idpost;
             if (idresposta) whereCondition.idresposta = idresposta;
             
             await LikesForum.destroy({ where: whereCondition });

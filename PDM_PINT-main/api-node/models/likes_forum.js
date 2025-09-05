@@ -7,11 +7,11 @@ module.exports = function (sequelize, DataTypes) {
             autoIncrement: true,
             primaryKey: true
         },
-        idutilizador: {
+        id_utilizador: {
             type: DataTypes.INTEGER,
             allowNull: false
         },
-        idpost: {
+        id_post: {
             type: DataTypes.INTEGER,
             allowNull: true  // Pode ser NULL quando é like de resposta
         },
@@ -19,9 +19,9 @@ module.exports = function (sequelize, DataTypes) {
             type: DataTypes.INTEGER,
             allowNull: true  // Pode ser NULL quando é like de post
         },
-        tipo: {
-            type: DataTypes.STRING,
-            allowNull: false
+        data_like: {
+            type: DataTypes.DATE,
+            allowNull: true
         }
     }, {
         tableName: 'likes_forum',
@@ -29,11 +29,11 @@ module.exports = function (sequelize, DataTypes) {
         validate: {
             // Garantir que pelo menos um dos campos está preenchido
             eitherPostOrResponse() {
-                if (!this.idpost && !this.idresposta) {
-                    throw new Error('Deve especificar idpost OU idresposta');
+                if (!this.id_post && !this.idresposta) {
+                    throw new Error('Deve especificar id_post OU idresposta');
                 }
-                if (this.idpost && this.idresposta) {
-                    throw new Error('Não pode especificar idpost E idresposta ao mesmo tempo');
+                if (this.id_post && this.idresposta) {
+                    throw new Error('Não pode especificar id_post E idresposta ao mesmo tempo');
                 }
             }
         }

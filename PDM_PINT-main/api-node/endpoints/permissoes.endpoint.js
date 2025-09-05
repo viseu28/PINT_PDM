@@ -6,12 +6,12 @@ module.exports = (db) => {
     try {
       const { id } = req.params;
       const permissao = await db.permissoes.findByPk(id, {
-        attributes: ['idpermissao', 'nome', 'descricao', 'categoria', 'ativo', 'ligado'],
+        attributes: ['id', 'nome', 'descricao', 'categoria', 'ativo', 'ligado'],
         include: [
           {
             model: db.roles_permissoes,
             as: 'rolesPermissoes',
-            attributes: ['idrole_permissao', 'role', 'datacriacao', 'dataatualizacao']
+            attributes: ['id', 'id_role', 'datacriacao', 'dataatualizacao']
           }
         ]
       });
@@ -32,8 +32,8 @@ module.exports = (db) => {
     try {
       const { id } = req.params;
       const roles = await db.roles_permissoes.findAll({
-        where: { idpermissao: id },
-        attributes: ['idrole_permissao', 'role', 'datacriacao', 'dataatualizacao']
+        where: { id_permissao: id },
+        attributes: ['id', 'id_role', 'datacriacao', 'dataatualizacao']
       });
 
       res.json(roles);

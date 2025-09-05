@@ -19,7 +19,7 @@ module.exports = function(sequelize, DataTypes) {
       allowNull: false,
       references: {
         model: 'permissoes',
-        key: 'idpermissao'
+        key: 'id'
       },
       onDelete: 'CASCADE',
       onUpdate: 'NO ACTION'
