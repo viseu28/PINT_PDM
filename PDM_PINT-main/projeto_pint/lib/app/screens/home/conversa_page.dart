@@ -45,7 +45,7 @@ class _ConversaPageState extends State<ConversaPage> {
       Uri.parse('${ApiConfig.likesForumUrl}'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
-        'idutilizador': widget.idUtilizador, // ALTERADO
+        'idutilizador': widget.idUtilizador, 
         'idpost': int.parse(idResposta),
         'tipo': 'like',
       }),
@@ -73,7 +73,7 @@ class _ConversaPageState extends State<ConversaPage> {
       Uri.parse('${ApiConfig.baseUrl}/likes_forum'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
-        'idutilizador': widget.idUtilizador, // ALTERADO
+        'idutilizador': widget.idUtilizador, 
         'idpost': int.parse(idResposta),
         'tipo': 'dislike',
       }),
@@ -103,7 +103,7 @@ class _ConversaPageState extends State<ConversaPage> {
       Uri.parse('${ApiConfig.baseUrl}/likes_forum'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
-        'idutilizador': widget.idUtilizador, // ALTERADO
+        'idutilizador': widget.idUtilizador, 
         'idpost': int.parse(idResposta),
       }),
     );

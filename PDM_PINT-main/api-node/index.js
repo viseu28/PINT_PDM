@@ -42,7 +42,7 @@ const sequelize = process.env.DATABASE_URL
   : new Sequelize(
       process.env.DB_NAME || 'pint', 
       process.env.DB_USER || 'grupo', 
-      process.env.DB_PASSWORD || 'paswwordpint', {
+      process.env.DB_PASSWORD || 'passwordpint', {
         host: process.env.DB_HOST || '172.201.108.53',
         dialect: 'postgres',
         port: process.env.DB_PORT || 5432,
