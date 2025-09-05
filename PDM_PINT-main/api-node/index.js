@@ -4976,15 +4976,28 @@ async function syncTable(localhostDB, tableName) {
   try {
     console.log(`🔄 Sincronizando tabela: ${tableName}`);
     
+    // Para a tabela cursos, sincronizar TODOS os cursos
+    let localQuery, renderQuery;
+    if (tableName === 'cursos') {
+      localQuery = `SELECT * FROM ${tableName} ORDER BY id`;
+      renderQuery = `SELECT * FROM ${tableName} ORDER BY id`;
+    } else {
+      // Para outras tabelas, filtrar por utilizador específico
+      localQuery = `SELECT * FROM ${tableName} WHERE idutilizador = 8 OR id = 8 OR id_utilizador = 8`;
+      renderQuery = `SELECT * FROM ${tableName} WHERE idutilizador = 8 OR id = 8 OR id_utilizador = 8`;
+    }
+    
     // Buscar dados do localhost
-    const [localData] = await localhostDB.query(`SELECT * FROM ${tableName} WHERE idutilizador = 8 OR id = 8 OR id_utilizador = 8`).catch(() => 
+    const [localData] = await localhostDB.query(localQuery).catch(() => 
       localhostDB.query(`SELECT * FROM ${tableName} LIMIT 100`)
     );
     
     // Buscar dados do render
-    const [renderData] = await sequelize.query(`SELECT * FROM ${tableName} WHERE idutilizador = 8 OR id = 8 OR id_utilizador = 8`).catch(() =>
+    const [renderData] = await sequelize.query(renderQuery).catch(() =>
       sequelize.query(`SELECT * FROM ${tableName} LIMIT 100`)
     );
+    
+    console.log(`📊 ${tableName}: Localhost tem ${localData.length} registos, Render tem ${renderData.length} registos`);
     
     // Comparar se são diferentes
     const localHash = JSON.stringify(localData.sort((a, b) => (a.id || a.idinscricao || a.idresposta || 0) - (b.id || b.idinscricao || b.idresposta || 0)));
@@ -4993,8 +5006,12 @@ async function syncTable(localhostDB, tableName) {
     if (localHash !== renderHash) {
       console.log(`🔄 Diferenças detectadas em ${tableName} - sincronizando...`);
       
-      // Limpar dados antigos do render (só do utilizador 8)
-      await sequelize.query(`DELETE FROM ${tableName} WHERE idutilizador = 8 OR id = 8 OR id_utilizador = 8`).catch(() => {});
+      // Para cursos, limpar TODA a tabela; para outras, só do utilizador específico
+      if (tableName === 'cursos') {
+        await sequelize.query(`DELETE FROM ${tableName}`).catch(() => {});
+      } else {
+        await sequelize.query(`DELETE FROM ${tableName} WHERE idutilizador = 8 OR id = 8 OR id_utilizador = 8`).catch(() => {});
+      }
       
       // Inserir dados novos do localhost
       for (const row of localData) {
