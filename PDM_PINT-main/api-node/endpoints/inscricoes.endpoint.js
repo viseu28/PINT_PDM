@@ -85,31 +85,25 @@ module.exports = (db) => {
       const curso = cursoResult[0];
       console.log('✅ Curso encontrado:', curso);
 
-      // 3. TEMPORÁRIO: Permitir múltiplas inscrições para teste
-      console.log('🔍 Verificação de inscrição DESATIVADA temporariamente');
-      console.log('⚠️ MODO TESTE: Permitindo múltiplas inscrições');
-
-      // Comentado temporariamente para permitir teste
-      /*
-      const inscricaoAtiva = await sequelize.query(`
+      // 3. Verificar se o usuário já se inscreveu neste curso anteriormente
+      console.log('🔍 Verificando se usuário já se inscreveu neste curso');
+      const inscricaoExistente = await sequelize.query(`
         SELECT idinscricao, estado FROM form_inscricao
-        WHERE idutilizador = $1 AND idcurso = $2 
-        AND estado IN ('inscrito', 'em_progresso')
+        WHERE idutilizador = $1 AND idcurso = $2
         LIMIT 1
       `, {
         bind: [idutilizador, idcurso],
         type: sequelize.QueryTypes.SELECT
       });
 
-      console.log('✅ Verificação de inscrição ativa:', inscricaoAtiva);
+      console.log('✅ Verificação de inscrição existente:', inscricaoExistente);
 
-      if (inscricaoAtiva.length > 0) {
+      if (inscricaoExistente.length > 0) {
         return res.status(400).json({
           success: false,
-          message: 'Você já está inscrito neste curso. Verifique suas inscrições ativas.'
+          message: 'Você já se inscreveu neste curso anteriormente. Cada curso só pode ser frequentado uma vez.'
         });
       }
-      */
 
       // 4. Verificar vagas disponíveis APENAS para cursos síncronos (SEM transação)
       const isSincrono = curso.tipo && curso.tipo.toLowerCase() === 'síncrono';
