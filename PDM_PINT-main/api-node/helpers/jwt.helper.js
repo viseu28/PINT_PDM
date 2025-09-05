@@ -8,6 +8,10 @@ const verificarToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
+  console.log('🔐 [JWT DEBUG] Authorization header:', authHeader ? 'Presente' : 'Ausente');
+  console.log('🔐 [JWT DEBUG] Token extraído:', token ? 'Presente' : 'Ausente');
+  console.log('🔐 [JWT DEBUG] JWT_SECRET sendo usado:', JWT_SECRET ? 'Definido' : 'Não definido');
+
   if (!token) {
     return res.status(401).json({ 
       success: false, 
@@ -18,11 +22,14 @@ const verificarToken = (req, res, next) => {
   try {
     // Verificar e decodificar o token
     const decoded = jwt.verify(token, JWT_SECRET);
+    console.log('✅ [JWT DEBUG] Token decodificado com sucesso, userId:', decoded.id);
     req.userId = decoded.id; // Usar 'id' em vez de 'userId'
     req.user = decoded;
     next();
   } catch (error) {
-    console.error('❌ Erro ao verificar token:', error.message);
+    console.error('❌ [JWT DEBUG] Erro ao verificar token:', error.message);
+    console.error('❌ [JWT DEBUG] Tipo do erro:', error.name);
+    console.error('❌ [JWT DEBUG] Token recebido (primeiros 20 chars):', token ? token.substring(0, 20) + '...' : 'null');
     return res.status(403).json({ 
       success: false, 
       message: 'Token inválido ou expirado' 
