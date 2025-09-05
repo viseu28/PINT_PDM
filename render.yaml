@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: pint-pdm-api
+    env: node
+    plan: free
+    buildCommand: cd api-node && npm install --legacy-peer-deps
+    startCommand: cd api-node && npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000

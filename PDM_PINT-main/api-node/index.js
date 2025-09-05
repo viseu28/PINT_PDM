@@ -3897,6 +3897,187 @@ app.get('/investigate-original-data', async (req, res) => {
   }
 });
 
+// ENDPOINTS CORRIGIDOS COM ESQUEMAS REAIS DA BD
+app.get('/fix-with-real-schemas', async (req, res) => {
+  try {
+    console.log('🔧 CORRIGINDO COM ESQUEMAS REAIS...');
+    
+    const fixes = [];
+    const userId = 8;
+    
+    // 1. VERIFICAR PERMISSÕES REAIS DO USER 8 (formando)
+    let permissoesReais = [];
+    try {
+      const [permissoes] = await sequelize.query(`
+        SELECT rp.idrole_permissao, rp.role, rp.idpermissao, p.nome, p.descricao
+        FROM roles_permissoes rp
+        JOIN permissoes p ON rp.idpermissao = p.idpermissao
+        WHERE rp.role = 'formando'
+        ORDER BY rp.idpermissao
+      `);
+      permissoesReais = permissoes;
+      fixes.push(`✅ Permissões do role 'formando': ${permissoes.length} encontradas`);
+    } catch (error) {
+      fixes.push(`❌ Erro permissões: ${error.message}`);
+    }
+    
+    // 2. VERIFICAR RESPOSTAS REAIS (tabela 'resposta')
+    let respostasReais = [];
+    try {
+      const [respostas] = await sequelize.query(`
+        SELECT r.idresposta, r.texto, r.datahora, r.idpost, r.idutilizador, r.autor
+        FROM resposta r
+        WHERE r.idpost IN (85, 86)
+        ORDER BY r.datahora ASC
+      `);
+      respostasReais = respostas;
+      fixes.push(`✅ Respostas nos posts 85/86: ${respostas.length} encontradas`);
+    } catch (error) {
+      fixes.push(`❌ Erro respostas: ${error.message}`);
+    }
+    
+    // 3. VERIFICAR INSCRIÇÕES DO USER 8
+    let inscricoesReais = [];
+    try {
+      const [inscricoes] = await sequelize.query(`
+        SELECT fi.idinscricao, fi.idutilizador, fi.idcurso, fi.estado, fi.data,
+               c.titulo, c.estado as estado_curso, c.data_inicio, c.data_fim
+        FROM form_inscricao fi
+        JOIN cursos c ON fi.idcurso = c.id
+        WHERE fi.idutilizador = ${userId} AND fi.estado = TRUE
+        ORDER BY fi.data DESC
+      `);
+      inscricoesReais = inscricoes;
+      fixes.push(`✅ Inscrições ativas do user ${userId}: ${inscricoes.length} encontradas`);
+    } catch (error) {
+      fixes.push(`❌ Erro inscrições: ${error.message}`);
+    }
+    
+    // 4. VERIFICAR POSTS DO USER 8
+    let postsReais = [];
+    try {
+      const [posts] = await sequelize.query(`
+        SELECT p.idpost, p.titulo, p.texto, p.datahora, p.idutilizador
+        FROM post p
+        WHERE p.idutilizador = ${userId}
+        ORDER BY p.datahora DESC
+      `);
+      postsReais = posts;
+      fixes.push(`✅ Posts criados pelo user ${userId}: ${posts.length} encontrados`);
+    } catch (error) {
+      fixes.push(`❌ Erro posts: ${error.message}`);
+    }
+    
+    // 5. VERIFICAR UTILIZADOR COM FCM_TOKEN
+    let utilizadorReal = {};
+    try {
+      const [user] = await sequelize.query(`
+        SELECT idutilizador, nome, email, tipo, fcm_token, estado
+        FROM utilizador 
+        WHERE idutilizador = ${userId}
+      `);
+      utilizadorReal = user[0] || {};
+      fixes.push(`✅ Dados do user ${userId}: ${user[0] ? 'encontrado' : 'não encontrado'}`);
+    } catch (error) {
+      fixes.push(`❌ Erro utilizador: ${error.message}`);
+    }
+    
+    res.json({
+      status: '🔧 CORREÇÃO COM ESQUEMAS REAIS',
+      message: 'Dados verificados com estrutura real da BD',
+      operacoes: fixes,
+      dados_reais: {
+        utilizador: utilizadorReal,
+        permissoes_formando: permissoesReais,
+        inscricoes_ativas: inscricoesReais,
+        posts_criados: postsReais,
+        respostas_nos_posts: respostasReais
+      },
+      resumo: {
+        user_pode_criar_posts: postsReais.length > 0,
+        user_tem_inscricoes: inscricoesReais.length > 0,
+        permissoes_role_formando: permissoesReais.length,
+        respostas_disponiveis: respostasReais.length
+      },
+      conclusao: 'Dados baseados nos esquemas reais da BD',
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro na correção:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Erro ao corrigir com esquemas reais',
+      error: error.message
+    });
+  }
+});
+
+// ENDPOINT PARA PERMISSÕES USANDO ESQUEMA REAL
+app.get('/user-permissions-real/:id', async (req, res) => {
+  try {
+    const userId = req.params.id;
+    
+    // Buscar tipo do utilizador
+    const [user] = await sequelize.query(`
+      SELECT idutilizador, nome, tipo, fcm_token 
+      FROM utilizador 
+      WHERE idutilizador = ${userId}
+    `);
+    
+    if (!user[0]) {
+      return res.status(404).json({ error: 'Utilizador não encontrado' });
+    }
+    
+    const utilizador = user[0];
+    
+    // Buscar permissões usando esquema real
+    const [permissoes] = await sequelize.query(`
+      SELECT rp.role, rp.idpermissao, p.nome, p.descricao
+      FROM roles_permissoes rp
+      JOIN permissoes p ON rp.idpermissao = p.idpermissao
+      WHERE rp.role = '${utilizador.tipo}'
+      ORDER BY rp.idpermissao
+    `);
+    
+    res.json({
+      user_id: userId,
+      user_info: utilizador,
+      user_role: utilizador.tipo,
+      permissions: permissoes,
+      has_permissions: permissoes.length > 0,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ENDPOINT PARA RESPOSTAS USANDO TABELA REAL 'resposta'
+app.get('/post-responses-real/:postId', async (req, res) => {
+  try {
+    const postId = req.params.postId;
+    
+    const [respostas] = await sequelize.query(`
+      SELECT r.idresposta, r.texto, r.datahora, r.idutilizador, r.autor, r.url, r.anexo
+      FROM resposta r
+      WHERE r.idpost = ${postId}
+      ORDER BY r.datahora ASC
+    `);
+    
+    res.json({
+      post_id: postId,
+      total_responses: respostas.length,
+      responses: respostas,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // VERIFICAR O QUE O USER 8 REALMENTE PODE FAZER NA BD
 app.get('/check-user8-real-capabilities', async (req, res) => {
   try {
