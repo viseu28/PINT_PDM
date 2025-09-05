@@ -1974,10 +1974,8 @@ module.exports = (db) => {
   router.get('/materiais/:id/download', async (req, res) => {
     try {
       const { id } = req.params;
-      const path = require('path');
-      const fs = require('fs');
 
-      console.log(`📥 Solicitação de download para material ID: ${id}`);
+      console.log(`📥 [MATERIAL] Solicitação de download para material ID: ${id}`);
 
       // Buscar informações do material na base de dados
       const materialResult = await sequelize.query(`
@@ -1997,7 +1995,7 @@ module.exports = (db) => {
       });
 
       if (!materialResult || materialResult.length === 0) {
-        console.log(`❌ Material com ID ${id} não encontrado`);
+        console.log(`❌ [MATERIAL] Material com ID ${id} não encontrado`);
         return res.status(404).json({
           success: false,
           message: 'Material não encontrado'
@@ -2005,28 +2003,51 @@ module.exports = (db) => {
       }
 
       const material = materialResult[0];
-      console.log(`📄 Material encontrado: ${material.titulo}`);
+      console.log(`📄 [MATERIAL] Material encontrado:`, {
+        id: material.id,
+        titulo: material.titulo,
+        caminho: material.caminho_arquivo,
+        nome: material.nome_arquivo
+      });
+
+      // Verificar se há caminho do arquivo
+      if (!material.caminho_arquivo) {
+        console.log(`❌ [MATERIAL] Caminho do arquivo não encontrado`);
+        return res.status(404).json({
+          success: false,
+          message: 'Arquivo do material não encontrado'
+        });
+      }
+
+      // Se é uma URL do Cloudinary (ou qualquer URL externa)
+      if (material.caminho_arquivo.startsWith('http')) {
+        console.log(`🔗 [MATERIAL] Redirecionando para Cloudinary: ${material.caminho_arquivo}`);
+        
+        // Definir headers para forçar download
+        res.setHeader('Content-Disposition', `attachment; filename="${material.nome_arquivo}"`);
+        
+        // Redirecionar para a URL do Cloudinary
+        return res.redirect(material.caminho_arquivo);
+      }
+
+      // Fallback para ficheiros locais (caso ainda existam alguns)
+      console.log(`📁 [MATERIAL] Tentando enviar arquivo local: ${material.caminho_arquivo}`);
+      const path = require('path');
+      const fs = require('fs');
 
       // Caminho absoluto do ficheiro
       let filePath = material.caminho_arquivo;
       const uploadsBase = path.join(__dirname, '../public/uploads');
-      if (!filePath) {
-        filePath = path.join(uploadsBase, material.nome_arquivo);
-      } else {
-        // Remover barras iniciais e garantir sempre relativo a 'public/uploads'
-        const relativePath = filePath.replace(/^\\+|^\/+/, '');
-        filePath = path.join(uploadsBase, relativePath);
-      }
-      console.log(`📁 Caminho absoluto do ficheiro para download: ${filePath}`);
+      
+      // Remover barras iniciais e garantir sempre relativo a 'public/uploads'
+      const relativePath = filePath.replace(/^\\+|^\/+/, '');
+      filePath = path.join(uploadsBase, relativePath);
+      
+      console.log(`📁 [MATERIAL] Caminho absoluto: ${filePath}`);
 
-      // Verificar se o ficheiro existe e é realmente um ficheiro
-      try {
-        const stat = fs.statSync(filePath);
-        if (!stat.isFile()) {
-          throw new Error('O caminho não é um ficheiro');
-        }
-      } catch (err) {
-        console.log(`❌ Ficheiro não encontrado ou inválido: ${filePath}`);
+      // Verificar se o ficheiro existe
+      if (!fs.existsSync(filePath)) {
+        console.log(`❌ [MATERIAL] Ficheiro local não encontrado: ${filePath}`);
         return res.status(404).json({
           success: false,
           message: 'Ficheiro não encontrado no servidor',
@@ -2034,19 +2055,19 @@ module.exports = (db) => {
         });
       }
 
-      // Forçar headers corretos para download binário
+      // Forçar headers corretos para download
       res.setHeader('Content-Type', material.tipo_mime || 'application/octet-stream');
       res.setHeader('Content-Disposition', `attachment; filename="${material.nome_arquivo}"`);
       res.setHeader('Content-Length', fs.statSync(filePath).size);
 
-      // Stream binário seguro
+      // Stream binário seguro para ficheiros locais
       const readStream = fs.createReadStream(filePath);
       readStream.on('open', () => {
-        console.log(`✅ Iniciando envio do ficheiro: ${material.nome_arquivo}`);
+        console.log(`✅ [MATERIAL] Iniciando envio do ficheiro local: ${material.nome_arquivo}`);
         readStream.pipe(res);
       });
       readStream.on('error', (err) => {
-        console.error('❌ Erro ao ler ficheiro para download:', err);
+        console.error('❌ [MATERIAL] Erro ao ler ficheiro para download:', err);
         if (!res.headersSent) {
           res.status(500).json({
             success: false,

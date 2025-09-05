@@ -173,6 +173,91 @@ router.post('/:idProjeto/submeter', upload.single('arquivo'), async (req, res) =
   }
 });
 
+  // GET /projetos/download/:id - Download de enunciado de projeto
+  router.get('/download/:id', async (req, res) => {
+    const { id } = req.params;
+    
+    try {
+      console.log(`🔍 [ENUNCIADO] Buscando projeto com ID: ${id}`);
+      
+      // Buscar o projeto na base de dados
+      const projeto = await Projetos.findOne({
+        where: { id_projeto: id },
+        attributes: [
+          'id_projeto',
+          'nome_projeto',
+          'ficheiro_url',
+          'ficheiro_nome_original'
+        ]
+      });
+
+      if (!projeto) {
+        console.log(`❌ [ENUNCIADO] Projeto não encontrado: ${id}`);
+        return res.status(404).json({ 
+          success: false,
+          error: 'Projeto não encontrado' 
+        });
+      }
+
+      console.log(`✅ [ENUNCIADO] Projeto encontrado:`, {
+        id: projeto.id_projeto,
+        nome: projeto.nome_projeto,
+        url: projeto.ficheiro_url,
+        nome_original: projeto.ficheiro_nome_original
+      });
+
+      // Verificar se há ficheiro de enunciado
+      if (!projeto.ficheiro_url) {
+        console.log(`❌ [ENUNCIADO] Ficheiro de enunciado não encontrado`);
+        return res.status(404).json({ 
+          success: false,
+          error: 'Enunciado do projeto não encontrado' 
+        });
+      }
+
+      // Se é uma URL do Cloudinary (ou qualquer URL externa)
+      if (projeto.ficheiro_url.startsWith('http')) {
+        console.log(`🔗 [ENUNCIADO] Redirecionando para Cloudinary: ${projeto.ficheiro_url}`);
+        
+        // Definir headers para forçar download
+        res.setHeader('Content-Disposition', `attachment; filename="${projeto.ficheiro_nome_original || projeto.nome_projeto}"`);
+        
+        // Redirecionar para a URL do Cloudinary
+        return res.redirect(projeto.ficheiro_url);
+      }
+
+      // Fallback para ficheiros locais (caso ainda existam alguns)
+      console.log(`📁 [ENUNCIADO] Tentando enviar arquivo local: ${projeto.ficheiro_url}`);
+      const path = require('path');
+      const fs = require('fs');
+      
+      const filePath = path.join(__dirname, '..', 'public', 'uploads', projeto.ficheiro_url);
+      
+      if (!fs.existsSync(filePath)) {
+        console.log(`❌ [ENUNCIADO] Arquivo local não encontrado: ${filePath}`);
+        return res.status(404).json({ 
+          success: false,
+          error: 'Arquivo do enunciado não encontrado no servidor' 
+        });
+      }
+
+      // Definir headers para download
+      res.setHeader('Content-Disposition', `attachment; filename="${projeto.ficheiro_nome_original || projeto.nome_projeto}"`);
+      res.setHeader('Content-Type', 'application/octet-stream');
+      
+      // Enviar o arquivo local
+      res.sendFile(filePath);
+
+    } catch (error) {
+      console.error('❌ [ENUNCIADO] Erro ao fazer download do enunciado:', error);
+      res.status(500).json({ 
+        success: false,
+        error: 'Erro interno do servidor',
+        details: process.env.NODE_ENV === 'development' ? error.message : null
+      });
+    }
+  });
+
   // GET /projetos/submissao/download/:id - Download de submissão específica
   router.get('/submissao/download/:id', async (req, res) => {
     const { id } = req.params;
