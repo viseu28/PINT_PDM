@@ -4153,6 +4153,219 @@ app.get('/fix-existing-table-structures', async (req, res) => {
   }
 });
 
+// ENDPOINTS USANDO OS NOMES REAIS DA BD NO RENDER
+app.get('/final-fix-real-columns', async (req, res) => {
+  try {
+    console.log('🎯 CORREÇÃO FINAL COM NOMES REAIS...');
+    
+    const fixes = [];
+    const userId = 8;
+    
+    // 1. PERMISSÕES usando nomes REAIS: id, nome, descricao
+    let permissoesReais = [];
+    try {
+      const [permissoes] = await sequelize.query(`
+        SELECT rp.id, rp.id_role, rp.id_permissao, p.nome, p.descricao
+        FROM roles_permissoes rp
+        JOIN permissoes p ON rp.id_permissao = p.id
+        ORDER BY rp.id
+      `);
+      permissoesReais = permissoes;
+      fixes.push(`✅ Permissões (nomes reais): ${permissoes.length} encontradas`);
+    } catch (error) {
+      fixes.push(`❌ Erro permissões reais: ${error.message}`);
+    }
+    
+    // 2. RESPOSTAS usando nomes REAIS: id, conteudo, id_utilizador
+    let respostasReais = [];
+    try {
+      const [respostas] = await sequelize.query(`
+        SELECT r.id, r.conteudo, r.data_resposta, r.id_utilizador, r.id_comentario
+        FROM resposta r
+        ORDER BY r.data_resposta DESC
+        LIMIT 10
+      `);
+      respostasReais = respostas;
+      fixes.push(`✅ Respostas (nomes reais): ${respostas.length} encontradas`);
+    } catch (error) {
+      fixes.push(`❌ Erro respostas reais: ${error.message}`);
+    }
+    
+    // 3. UTILIZADOR funciona (já testado)
+    let utilizadorReal = {};
+    try {
+      const [user] = await sequelize.query(`
+        SELECT idutilizador, nome, tipo, fcm_token
+        FROM utilizador
+        WHERE idutilizador = ${userId}
+      `);
+      utilizadorReal = user[0] || {};
+      fixes.push(`✅ Utilizador: ${user[0] ? 'encontrado' : 'não encontrado'}`);
+    } catch (error) {
+      fixes.push(`❌ Erro utilizador: ${error.message}`);
+    }
+    
+    // 4. INSCRIÇÕES funcionam (já testado)
+    let inscricoesReais = [];
+    try {
+      const [inscricoes] = await sequelize.query(`
+        SELECT fi.idinscricao, fi.idutilizador, fi.idcurso, c.titulo, fi.estado
+        FROM form_inscricao fi
+        JOIN cursos c ON fi.idcurso = c.id
+        WHERE fi.idutilizador = ${userId} AND fi.estado = TRUE
+      `);
+      inscricoesReais = inscricoes;
+      fixes.push(`✅ Inscrições: ${inscricoes.length} ativas`);
+    } catch (error) {
+      fixes.push(`❌ Erro inscrições: ${error.message}`);
+    }
+    
+    // 5. POSTS funcionam (já testado)
+    let postsReais = [];
+    try {
+      const [posts] = await sequelize.query(`
+        SELECT idpost, titulo, texto, idutilizador
+        FROM post
+        WHERE idutilizador = ${userId}
+      `);
+      postsReais = posts;
+      fixes.push(`✅ Posts: ${posts.length} criados pelo user`);
+    } catch (error) {
+      fixes.push(`❌ Erro posts: ${error.message}`);
+    }
+    
+    // 6. VERIFICAR DADOS NAS TABELAS
+    const verificacao = {};
+    try {
+      const [countPerm] = await sequelize.query(`SELECT COUNT(*) as total FROM permissoes`);
+      verificacao.total_permissoes = countPerm[0].total;
+    } catch (e) { verificacao.total_permissoes = 'ERRO'; }
+    
+    try {
+      const [countRoles] = await sequelize.query(`SELECT COUNT(*) as total FROM roles_permissoes`);
+      verificacao.total_roles_permissoes = countRoles[0].total;
+    } catch (e) { verificacao.total_roles_permissoes = 'ERRO'; }
+    
+    try {
+      const [countResp] = await sequelize.query(`SELECT COUNT(*) as total FROM resposta`);
+      verificacao.total_respostas = countResp[0].total;
+    } catch (e) { verificacao.total_respostas = 'ERRO'; }
+    
+    res.json({
+      status: '🎯 CORREÇÃO FINAL COM BD REAL',
+      message: 'Usando estrutura real da BD no Render',
+      operacoes: fixes,
+      dados_reais: {
+        utilizador: utilizadorReal,
+        permissoes_roles: permissoesReais,
+        inscricoes_ativas: inscricoesReais,
+        posts_criados: postsReais,
+        respostas_sistema: respostasReais
+      },
+      contagens: verificacao,
+      estruturas_reais: {
+        permissoes: 'id, nome, descricao',
+        roles_permissoes: 'id, id_role, id_permissao',
+        resposta: 'id, conteudo, data_resposta, id_utilizador',
+        utilizador: 'idutilizador, nome, tipo, fcm_token',
+        inscricoes: 'form_inscricao ✅ funciona',
+        posts: 'post ✅ funciona'
+      },
+      conclusao: {
+        funcionam: ['utilizador', 'form_inscricao', 'post'],
+        problemas: ['permissoes vazias?', 'roles_permissoes vazias?', 'resposta diferente do esperado'],
+        solucao: 'Usar apenas o que funciona + criar dados em falta se necessário'
+      },
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro na correção final:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Erro na correção final',
+      error: error.message
+    });
+  }
+});
+
+// CRIAR DADOS DE TESTE APENAS SE NECESSÁRIO
+app.get('/populate-empty-tables', async (req, res) => {
+  try {
+    console.log('📊 POVOANDO TABELAS VAZIAS...');
+    
+    const operations = [];
+    
+    // 1. Verificar se permissoes está vazia e popular
+    try {
+      const [countPerm] = await sequelize.query(`SELECT COUNT(*) as total FROM permissoes`);
+      if (countPerm[0].total == 0) {
+        await sequelize.query(`
+          INSERT INTO permissoes (nome, descricao) VALUES 
+          ('Visualizar Cursos', 'Permite visualizar todos os cursos'),
+          ('Participar Forum', 'Permite participar no forum'),
+          ('Responder Posts', 'Permite responder a posts do forum'),
+          ('Criar Posts', 'Permite criar novos posts no forum'),
+          ('Editar Perfil', 'Permite editar o próprio perfil')
+        `);
+        operations.push('✅ Permissões criadas (tabela estava vazia)');
+      } else {
+        operations.push(`ℹ️ Permissões já existem: ${countPerm[0].total}`);
+      }
+    } catch (error) {
+      operations.push(`❌ Erro permissões: ${error.message}`);
+    }
+    
+    // 2. Verificar se roles_permissoes está vazia e popular
+    try {
+      const [countRoles] = await sequelize.query(`SELECT COUNT(*) as total FROM roles_permissoes`);
+      if (countRoles[0].total == 0) {
+        // Assumir que roles são: 1=formando, 2=formador, 3=admin
+        await sequelize.query(`
+          INSERT INTO roles_permissoes (id_role, id_permissao) VALUES 
+          (1, 1), (1, 2), (1, 3), (1, 5),
+          (2, 1), (2, 2), (2, 3), (2, 4), (2, 5),
+          (3, 1), (3, 2), (3, 3), (3, 4), (3, 5)
+        `);
+        operations.push('✅ Roles-permissões criadas (tabela estava vazia)');
+      } else {
+        operations.push(`ℹ️ Roles-permissões já existem: ${countRoles[0].total}`);
+      }
+    } catch (error) {
+      operations.push(`❌ Erro roles: ${error.message}`);
+    }
+    
+    // 3. Testar queries após população
+    const testes = {};
+    try {
+      const [permUser] = await sequelize.query(`
+        SELECT rp.id_role, rp.id_permissao, p.nome
+        FROM roles_permissoes rp
+        JOIN permissoes p ON rp.id_permissao = p.id
+        WHERE rp.id_role = 1
+        ORDER BY p.nome
+      `);
+      testes.permissoes_formando = permUser;
+    } catch (e) { testes.permissoes_formando = `Erro: ${e.message}`; }
+    
+    res.json({
+      status: '📊 TABELAS POVOADAS',
+      message: 'Dados criados apenas se necessário',
+      operacoes_realizadas: operations,
+      testes_pos_populacao: testes,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro ao povoar:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Erro ao povoar tabelas',
+      error: error.message
+    });
+  }
+});
+
 // TESTAR TODAS AS QUERIES APÓS CORREÇÕES
 app.get('/test-all-after-fixes', async (req, res) => {
   try {
@@ -4776,6 +4989,147 @@ app.get('/real-user-data/:id', async (req, res) => {
     });
     
   } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Endpoint para comparar estruturas de tabelas e identificar diferenças
+app.get('/compare-table-structures', async (req, res) => {
+  try {
+    // Verificar estrutura da tabela role_permissoes
+    const rolePermissoesStructure = await sequelize.query(`
+      SELECT column_name, data_type, is_nullable, column_default
+      FROM information_schema.columns 
+      WHERE table_name = 'role_permissoes' 
+      ORDER BY ordinal_position
+    `, { type: QueryTypes.SELECT });
+
+    // Verificar estrutura da tabela resposta
+    const respostaStructure = await sequelize.query(`
+      SELECT column_name, data_type, is_nullable, column_default
+      FROM information_schema.columns 
+      WHERE table_name = 'resposta' 
+      ORDER BY ordinal_position
+    `, { type: QueryTypes.SELECT });
+
+    // Verificar dados existentes nas tabelas
+    const rolePermissoesData = await sequelize.query(
+      'SELECT * FROM role_permissoes LIMIT 5',
+      { type: QueryTypes.SELECT }
+    );
+
+    const respostaData = await sequelize.query(
+      'SELECT * FROM resposta LIMIT 5',
+      { type: QueryTypes.SELECT }
+    );
+
+    res.json({ 
+      structures: {
+        role_permissoes: rolePermissoesStructure,
+        resposta: respostaStructure
+      },
+      sampleData: {
+        role_permissoes: rolePermissoesData,
+        resposta: respostaData
+      }
+    });
+  } catch (error) {
+    console.error('Erro:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Endpoint para corrigir estruturas de tabelas baseado nas imagens fornecidas
+app.get('/fix-table-structures', async (req, res) => {
+  try {
+    console.log('🔧 Corrigindo estruturas das tabelas...');
+    
+    // Primeiro, verificar se as colunas necessárias existem em role_permissoes
+    const rolePermissoesCheck = await sequelize.query(`
+      SELECT column_name FROM information_schema.columns 
+      WHERE table_name = 'role_permissoes'
+    `, { type: QueryTypes.SELECT });
+    
+    const existingColumns = rolePermissoesCheck.map(col => col.column_name);
+    console.log('Colunas existentes em role_permissoes:', existingColumns);
+    
+    // Adicionar colunas que faltam em role_permissoes se necessário
+    if (!existingColumns.includes('idrole_permissao')) {
+      await sequelize.query('ALTER TABLE role_permissoes ADD COLUMN idrole_permissao SERIAL PRIMARY KEY');
+    }
+    if (!existingColumns.includes('role')) {
+      await sequelize.query('ALTER TABLE role_permissoes ADD COLUMN role VARCHAR(20)');
+    }
+    if (!existingColumns.includes('idpermissao')) {
+      await sequelize.query('ALTER TABLE role_permissoes ADD COLUMN idpermissao INTEGER');
+    }
+    if (!existingColumns.includes('datacriacao')) {
+      await sequelize.query('ALTER TABLE role_permissoes ADD COLUMN datacriacao TIMESTAMP DEFAULT NOW()');
+    }
+    if (!existingColumns.includes('datatualizacao')) {
+      await sequelize.query('ALTER TABLE role_permissoes ADD COLUMN datatualizacao TIMESTAMP DEFAULT NOW()');
+    }
+    
+    // Verificar se as colunas necessárias existem em resposta
+    const respostaCheck = await sequelize.query(`
+      SELECT column_name FROM information_schema.columns 
+      WHERE table_name = 'resposta'
+    `, { type: QueryTypes.SELECT });
+    
+    const respostaColumns = respostaCheck.map(col => col.column_name);
+    console.log('Colunas existentes em resposta:', respostaColumns);
+    
+    // Adicionar colunas que faltam em resposta se necessário
+    if (!respostaColumns.includes('idresposta')) {
+      await sequelize.query('ALTER TABLE resposta ADD COLUMN idresposta SERIAL PRIMARY KEY');
+    }
+    if (!respostaColumns.includes('texto')) {
+      await sequelize.query('ALTER TABLE resposta ADD COLUMN texto TEXT');
+    }
+    if (!respostaColumns.includes('datahora')) {
+      await sequelize.query('ALTER TABLE resposta ADD COLUMN datahora TIMESTAMP DEFAULT NOW()');
+    }
+    if (!respostaColumns.includes('idpost')) {
+      await sequelize.query('ALTER TABLE resposta ADD COLUMN idpost INTEGER');
+    }
+    if (!respostaColumns.includes('idrespostapai')) {
+      await sequelize.query('ALTER TABLE resposta ADD COLUMN idrespostapai INTEGER');
+    }
+    if (!respostaColumns.includes('idutilizador')) {
+      await sequelize.query('ALTER TABLE resposta ADD COLUMN idutilizador INTEGER');
+    }
+    if (!respostaColumns.includes('autor')) {
+      await sequelize.query('ALTER TABLE resposta ADD COLUMN autor VARCHAR(100)');
+    }
+    if (!respostaColumns.includes('url')) {
+      await sequelize.query('ALTER TABLE resposta ADD COLUMN url TEXT');
+    }
+    if (!respostaColumns.includes('anexo')) {
+      await sequelize.query('ALTER TABLE resposta ADD COLUMN anexo TEXT');
+    }
+    
+    // Verificar estruturas finais
+    const finalRolePermissoes = await sequelize.query(`
+      SELECT column_name, data_type FROM information_schema.columns 
+      WHERE table_name = 'role_permissoes' ORDER BY ordinal_position
+    `, { type: QueryTypes.SELECT });
+    
+    const finalResposta = await sequelize.query(`
+      SELECT column_name, data_type FROM information_schema.columns 
+      WHERE table_name = 'resposta' ORDER BY ordinal_position
+    `, { type: QueryTypes.SELECT });
+    
+    res.json({
+      success: true,
+      message: 'Estruturas das tabelas corrigidas!',
+      finalStructures: {
+        role_permissoes: finalRolePermissoes,
+        resposta: finalResposta
+      }
+    });
+    
+  } catch (error) {
+    console.error('Erro ao corrigir estruturas:', error);
     res.status(500).json({ error: error.message });
   }
 });
