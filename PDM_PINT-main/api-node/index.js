@@ -2234,8 +2234,10 @@ app.get('/inscricoes', async (req, res) => {
     // Se não tem userId na query, tentar extrair do token
     if (!userId && token) {
       try {
+        const { verificarToken } = require('./helpers/jwt.helper');
         const jwt = require('jsonwebtoken');
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'segredo123');
+        const JWT_SECRET = process.env.JWT_SECRET || 'chave_secreta_segura_para_desenvolvimento';
+        const decoded = jwt.verify(token, JWT_SECRET);
         userId = decoded.userId;
       } catch (error) {
         console.log('⚠️ Token inválido, usando userId padrão');

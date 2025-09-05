@@ -1,34 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const { Sequelize, Op } = require('sequelize');
-const jwt = require('jsonwebtoken');
-
-// Usar o mesmo JWT_SECRET que o endpoint de utilizador
-const JWT_SECRET = 'chave_secreta_segura_para_desenvolvimento';
+const { verificarToken } = require('../helpers/jwt.helper');
 
 // Importar modelos
 module.exports = (db) => {
-  // Middleware para verificar token JWT
-  const verificarToken = (req, res, next) => {
-    const token = req.headers.authorization?.split(' ')[1];
-    
-    console.log(`[DEBUG] Verificando token para favoritos - Token presente: ${token ? 'Sim' : 'Não'}`);
-    
-    if (!token) {
-      return res.status(401).json({ message: 'Token não fornecido' });
-    }
-    
-    try {
-      const decoded = jwt.verify(token, JWT_SECRET); // Usar o mesmo secret
-      req.userId = decoded.id; // Corrigido: usar 'id' em vez de 'idutilizador'
-      console.log(`[DEBUG] Token decodificado com sucesso - userId: ${req.userId}`);
-      next();
-    } catch (error) {
-      console.error('[ERROR] Token verification failed:', error.message);
-      return res.status(401).json({ message: 'Token inválido' });
-    }
-  };
-
   // Adicionar curso aos favoritos
   router.post('/:userId/:cursoId', verificarToken, async (req, res) => {
     try {
