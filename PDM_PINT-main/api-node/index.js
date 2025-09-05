@@ -4901,15 +4901,17 @@ app.get('/confirm-limpeza-inscricoes', async (req, res) => {
 
 // MIDDLEWARE UNIVERSAL: Sincronizar dados específicos para cada endpoint
 let lastSyncTime = 0;
-const SYNC_COOLDOWN = 30000; // 30 segundos entre sincronizações
+const SYNC_COOLDOWN = 5000; // 5 segundos para teste mais rápido
 
 async function universalSyncMiddleware(req, res, next) {
   const now = Date.now();
   
+  console.log(`🔍 MIDDLEWARE: ${req.path} - Tempo desde última sync: ${now - lastSyncTime}ms (cooldown: ${SYNC_COOLDOWN}ms)`);
+  
   // Só sincronizar se passou tempo suficiente desde a última sincronização
   if (now - lastSyncTime > SYNC_COOLDOWN) {
     try {
-      console.log(`📱 Endpoint ${req.path} carregado - verificando sincronização...`);
+      console.log(`📱 Endpoint ${req.path} carregado - INICIANDO sincronização...`);
       
       const localhostDB = new Sequelize('projeto_pint', 'postgres', 'root', {
         host: 'localhost',
@@ -4918,10 +4920,13 @@ async function universalSyncMiddleware(req, res, next) {
         pool: { max: 1, min: 0, acquire: 5000, idle: 1000 }
       });
       
+      console.log('🔗 Tentando conectar ao localhost...');
       await localhostDB.authenticate();
+      console.log('✅ Conectado ao localhost!');
       
       // Determinar que dados sincronizar baseado no endpoint
       const syncTables = getSyncTablesForEndpoint(req.path);
+      console.log(`🔄 Tabelas a sincronizar para ${req.path}:`, syncTables);
       
       for (const table of syncTables) {
         await syncTable(localhostDB, table);
@@ -4929,10 +4934,14 @@ async function universalSyncMiddleware(req, res, next) {
       
       await localhostDB.close();
       lastSyncTime = now;
+      console.log('✅ Sincronização completa!');
       
     } catch (error) {
-      console.log('⚠️ Erro na sincronização automática:', error.message);
+      console.log('⚠️ ERRO na sincronização automática:', error.message);
+      console.log('🔍 Stack trace:', error.stack);
     }
+  } else {
+    console.log(`⏰ Cooldown ativo - próxima sync em ${Math.round((SYNC_COOLDOWN - (now - lastSyncTime)) / 1000)}s`);
   }
   
   next();
