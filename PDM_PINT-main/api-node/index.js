@@ -36,10 +36,7 @@ const sequelize = process.env.DATABASE_URL
         max: 3,          // Máximo 3 tentativas de reconexão
       },
       dialectOptions: {
-        ssl: process.env.NODE_ENV === 'production' ? {
-          require: true,
-          rejectUnauthorized: false
-        } : false
+        ssl: false       // DESATIVAR SSL para 172.201.108.53
       }
     })
   : new Sequelize(
