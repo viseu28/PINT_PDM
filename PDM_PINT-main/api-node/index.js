@@ -3897,6 +3897,149 @@ app.get('/investigate-original-data', async (req, res) => {
   }
 });
 
+// VERIFICAR ESTRUTURA EXATA DAS TABELAS PROBLEMÁTICAS
+app.get('/verify-exact-schemas', async (req, res) => {
+  try {
+    console.log('🔍 VERIFICANDO ESTRUTURAS EXATAS...');
+    
+    const estruturas = {};
+    
+    // 1. Estrutura EXATA da tabela roles_permissoes
+    try {
+      const [rolesStruct] = await sequelize.query(`
+        SELECT column_name, data_type, is_nullable 
+        FROM information_schema.columns 
+        WHERE table_name = 'roles_permissoes' 
+        ORDER BY ordinal_position
+      `);
+      estruturas.roles_permissoes_colunas = rolesStruct;
+    } catch (e) { estruturas.roles_permissoes_colunas = `Erro: ${e.message}`; }
+    
+    // 2. Estrutura EXATA da tabela resposta
+    try {
+      const [respostaStruct] = await sequelize.query(`
+        SELECT column_name, data_type, is_nullable 
+        FROM information_schema.columns 
+        WHERE table_name = 'resposta' 
+        ORDER BY ordinal_position
+      `);
+      estruturas.resposta_colunas = respostaStruct;
+    } catch (e) { estruturas.resposta_colunas = `Erro: ${e.message}`; }
+    
+    // 3. Estrutura EXATA da tabela utilizador
+    try {
+      const [userStruct] = await sequelize.query(`
+        SELECT column_name, data_type, is_nullable 
+        FROM information_schema.columns 
+        WHERE table_name = 'utilizador' 
+        ORDER BY ordinal_position
+      `);
+      estruturas.utilizador_colunas = userStruct;
+    } catch (e) { estruturas.utilizador_colunas = `Erro: ${e.message}`; }
+    
+    // 4. Estrutura EXATA da tabela permissoes
+    try {
+      const [permStruct] = await sequelize.query(`
+        SELECT column_name, data_type, is_nullable 
+        FROM information_schema.columns 
+        WHERE table_name = 'permissoes' 
+        ORDER BY ordinal_position
+      `);
+      estruturas.permissoes_colunas = permStruct;
+    } catch (e) { estruturas.permissoes_colunas = `Erro: ${e.message}`; }
+    
+    // 5. Dados EXISTENTES para confirmar nomes
+    try {
+      const [rolesData] = await sequelize.query(`SELECT * FROM roles_permissoes LIMIT 3`);
+      estruturas.roles_permissoes_dados = rolesData;
+    } catch (e) { estruturas.roles_permissoes_dados = `Erro: ${e.message}`; }
+    
+    try {
+      const [respostaData] = await sequelize.query(`SELECT * FROM resposta LIMIT 3`);
+      estruturas.resposta_dados = respostaData;
+    } catch (e) { estruturas.resposta_dados = `Erro: ${e.message}`; }
+    
+    try {
+      const [permData] = await sequelize.query(`SELECT * FROM permissoes LIMIT 3`);
+      estruturas.permissoes_dados = permData;
+    } catch (e) { estruturas.permissoes_dados = `Erro: ${e.message}`; }
+    
+    res.json({
+      status: '🔍 ESTRUTURAS EXATAS VERIFICADAS',
+      message: 'Colunas reais das tabelas problemáticas',
+      estruturas_reais: estruturas,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro na verificação:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Erro ao verificar estruturas exatas',
+      error: error.message
+    });
+  }
+});
+
+// TESTE SIMPLES COM QUERIES BÁSICAS
+app.get('/test-basic-queries', async (req, res) => {
+  try {
+    console.log('🧪 TESTANDO QUERIES BÁSICAS...');
+    
+    const testes = {};
+    
+    // 1. Teste básico - utilizador sem fcm_token
+    try {
+      const [user] = await sequelize.query(`SELECT idutilizador, nome, tipo FROM utilizador WHERE idutilizador = 8`);
+      testes.utilizador_basico = user[0] || 'não encontrado';
+    } catch (e) { testes.utilizador_basico = `Erro: ${e.message}`; }
+    
+    // 2. Teste básico - roles_permissoes
+    try {
+      const [roles] = await sequelize.query(`SELECT * FROM roles_permissoes LIMIT 5`);
+      testes.roles_permissoes_sample = roles;
+    } catch (e) { testes.roles_permissoes_sample = `Erro: ${e.message}`; }
+    
+    // 3. Teste básico - resposta
+    try {
+      const [resp] = await sequelize.query(`SELECT * FROM resposta LIMIT 5`);
+      testes.resposta_sample = resp;
+    } catch (e) { testes.resposta_sample = `Erro: ${e.message}`; }
+    
+    // 4. Teste básico - permissoes
+    try {
+      const [perm] = await sequelize.query(`SELECT * FROM permissoes LIMIT 5`);
+      testes.permissoes_sample = perm;
+    } catch (e) { testes.permissoes_sample = `Erro: ${e.message}`; }
+    
+    // 5. Inscrições que funcionam
+    try {
+      const [inscr] = await sequelize.query(`
+        SELECT fi.idinscricao, fi.idutilizador, fi.idcurso, c.titulo 
+        FROM form_inscricao fi 
+        JOIN cursos c ON fi.idcurso = c.id 
+        WHERE fi.idutilizador = 8
+      `);
+      testes.inscricoes_funcionam = inscr;
+    } catch (e) { testes.inscricoes_funcionam = `Erro: ${e.message}`; }
+    
+    res.json({
+      status: '🧪 TESTES BÁSICOS',
+      message: 'Queries simples para verificar dados',
+      resultados_testes: testes,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro nos testes:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Erro nos testes básicos',
+      error: error.message
+    });
+  }
+});
+
 // ENDPOINTS CORRIGIDOS COM ESQUEMAS REAIS DA BD
 app.get('/fix-with-real-schemas', async (req, res) => {
   try {
