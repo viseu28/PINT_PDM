@@ -5689,6 +5689,95 @@ app.get('/emergency-fix-all', async (req, res) => {
     }
 });
 
+// 🔥 ENDPOINT PARA CORRIGIR BD RENDER = LOCALHOST
+app.get('/fix-render-like-localhost', async (req, res) => {
+    try {
+        console.log('🔥 CORRIGINDO RENDER PARA FICAR IGUAL AO LOCALHOST...');
+        
+        const fixes = [];
+        
+        // 1. CORRIGIR TABELA PERMISSOES (adicionar idpermissao se só tem id)
+        try {
+            const [permCols] = await sequelize.query(`
+                SELECT column_name FROM information_schema.columns 
+                WHERE table_name = 'permissoes'
+            `);
+            const cols = permCols.map(c => c.column_name);
+            
+            if (cols.includes('id') && !cols.includes('idpermissao')) {
+                await sequelize.query('ALTER TABLE permissoes RENAME COLUMN id TO idpermissao');
+                fixes.push('✅ Coluna id renomeada para idpermissao em permissoes');
+            }
+        } catch (error) {
+            fixes.push(`❌ Erro permissoes: ${error.message}`);
+        }
+        
+        // 2. CORRIGIR TABELA LIKES_FORUM
+        try {
+            const [likesCols] = await sequelize.query(`
+                SELECT column_name FROM information_schema.columns 
+                WHERE table_name = 'likes_forum'
+            `);
+            const cols = likesCols.map(c => c.column_name);
+            
+            // Renomear colunas para nomes do localhost
+            if (cols.includes('id_utilizador') && !cols.includes('idutilizador')) {
+                await sequelize.query('ALTER TABLE likes_forum RENAME COLUMN id_utilizador TO idutilizador');
+                fixes.push('✅ Coluna id_utilizador renomeada para idutilizador');
+            }
+            
+            if (cols.includes('id_post') && !cols.includes('idpost')) {
+                await sequelize.query('ALTER TABLE likes_forum RENAME COLUMN id_post TO idpost');
+                fixes.push('✅ Coluna id_post renomeada para idpost');
+            }
+            
+            // Adicionar coluna tipo se não existe
+            if (!cols.includes('tipo')) {
+                await sequelize.query('ALTER TABLE likes_forum ADD COLUMN tipo VARCHAR(10)');
+                fixes.push('✅ Adicionada coluna tipo à likes_forum');
+            }
+        } catch (error) {
+            fixes.push(`❌ Erro likes_forum: ${error.message}`);
+        }
+        
+        // 3. CORRIGIR TABELA GUARDADOS
+        try {
+            const [guardCols] = await sequelize.query(`
+                SELECT column_name FROM information_schema.columns 
+                WHERE table_name = 'guardados'
+            `);
+            const cols = guardCols.map(c => c.column_name);
+            
+            // Renomear para estrutura do localhost
+            if (cols.includes('id_utilizador') && !cols.includes('idutilizador')) {
+                await sequelize.query('ALTER TABLE guardados RENAME COLUMN id_utilizador TO idutilizador');
+                fixes.push('✅ Coluna id_utilizador renomeada para idutilizador em guardados');
+            }
+            
+            if (cols.includes('id_curso') && !cols.includes('idpost')) {
+                await sequelize.query('ALTER TABLE guardados RENAME COLUMN id_curso TO idpost');
+                fixes.push('✅ Coluna id_curso renomeada para idpost em guardados');
+            }
+        } catch (error) {
+            fixes.push(`❌ Erro guardados: ${error.message}`);
+        }
+        
+        res.json({
+            success: true,
+            message: '🔥 RENDER AGORA IGUAL AO LOCALHOST!',
+            fixes: fixes,
+            next_step: 'Agora o teu código deve funcionar exatamente como no localhost'
+        });
+        
+    } catch (error) {
+        console.error('❌ Erro na correção:', error.message);
+        res.status(500).json({ 
+            success: false, 
+            error: error.message
+        });
+    }
+});
+
 // Root endpoint
 app.get('/', (req, res) => {
   res.json({ 
