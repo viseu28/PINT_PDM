@@ -4015,6 +4015,230 @@ app.get('/fix-with-exact-scripts', async (req, res) => {
   }
 });
 
+// CORRIGIR ESTRUTURAS DAS TABELAS EXISTENTES
+app.get('/fix-existing-table-structures', async (req, res) => {
+  try {
+    console.log('🔧 CORRIGINDO ESTRUTURAS DAS TABELAS EXISTENTES...');
+    
+    const fixes = [];
+    
+    // 1. ADICIONAR COLUNAS EM FALTA NA TABELA PERMISSOES
+    try {
+      // Verificar estrutura atual da permissoes
+      const [permStruct] = await sequelize.query(`
+        SELECT column_name FROM information_schema.columns 
+        WHERE table_name = 'permissoes' ORDER BY ordinal_position
+      `);
+      
+      fixes.push(`ℹ️ Permissoes atual: ${permStruct.map(c => c.column_name).join(', ')}`);
+      
+      // Adicionar colunas que podem estar em falta
+      await sequelize.query(`ALTER TABLE permissoes ADD COLUMN IF NOT EXISTS idpermissao SERIAL PRIMARY KEY`);
+      await sequelize.query(`ALTER TABLE permissoes ADD COLUMN IF NOT EXISTS categoria VARCHAR(50)`);
+      await sequelize.query(`ALTER TABLE permissoes ADD COLUMN IF NOT EXISTS ativo BOOLEAN DEFAULT TRUE`);
+      await sequelize.query(`ALTER TABLE permissoes ADD COLUMN IF NOT EXISTS datacriacao TIMESTAMP DEFAULT NOW()`);
+      await sequelize.query(`ALTER TABLE permissoes ADD COLUMN IF NOT EXISTS dataatualizacao TIMESTAMP DEFAULT NOW()`);
+      await sequelize.query(`ALTER TABLE permissoes ADD COLUMN IF NOT EXISTS ligado BOOLEAN DEFAULT TRUE`);
+      
+      fixes.push('✅ Colunas da permissoes verificadas/adicionadas');
+    } catch (error) {
+      fixes.push(`❌ Erro permissoes: ${error.message}`);
+    }
+    
+    // 2. ADICIONAR COLUNAS EM FALTA NA TABELA RESPOSTA
+    try {
+      // Verificar estrutura atual da resposta
+      const [respStruct] = await sequelize.query(`
+        SELECT column_name FROM information_schema.columns 
+        WHERE table_name = 'resposta' ORDER BY ordinal_position
+      `);
+      
+      fixes.push(`ℹ️ Resposta atual: ${respStruct.map(c => c.column_name).join(', ')}`);
+      
+      // Adicionar colunas que podem estar em falta
+      await sequelize.query(`ALTER TABLE resposta ADD COLUMN IF NOT EXISTS texto TEXT`);
+      await sequelize.query(`ALTER TABLE resposta ADD COLUMN IF NOT EXISTS autor VARCHAR(100) DEFAULT ''`);
+      await sequelize.query(`ALTER TABLE resposta ADD COLUMN IF NOT EXISTS url TEXT`);
+      await sequelize.query(`ALTER TABLE resposta ADD COLUMN IF NOT EXISTS anexo TEXT`);
+      await sequelize.query(`ALTER TABLE resposta ADD COLUMN IF NOT EXISTS idrespostapai INTEGER`);
+      
+      fixes.push('✅ Colunas da resposta verificadas/adicionadas');
+    } catch (error) {
+      fixes.push(`❌ Erro resposta: ${error.message}`);
+    }
+    
+    // 3. ADICIONAR COLUNA FCM_TOKEN AO UTILIZADOR
+    try {
+      // Verificar estrutura atual do utilizador
+      const [userStruct] = await sequelize.query(`
+        SELECT column_name FROM information_schema.columns 
+        WHERE table_name = 'utilizador' ORDER BY ordinal_position
+      `);
+      
+      fixes.push(`ℹ️ Utilizador atual: ${userStruct.map(c => c.column_name).join(', ')}`);
+      
+      await sequelize.query(`ALTER TABLE utilizador ADD COLUMN IF NOT EXISTS fcm_token TEXT`);
+      
+      fixes.push('✅ Coluna fcm_token verificada/adicionada');
+    } catch (error) {
+      fixes.push(`❌ Erro utilizador: ${error.message}`);
+    }
+    
+    // 4. CORRIGIR ROLES_PERMISSOES SE NECESSÁRIO
+    try {
+      // Verificar estrutura atual da roles_permissoes
+      const [rolesStruct] = await sequelize.query(`
+        SELECT column_name FROM information_schema.columns 
+        WHERE table_name = 'roles_permissoes' ORDER BY ordinal_position
+      `);
+      
+      fixes.push(`ℹ️ Roles_permissoes atual: ${rolesStruct.map(c => c.column_name).join(', ')}`);
+      
+      // Adicionar colunas que podem estar em falta
+      await sequelize.query(`ALTER TABLE roles_permissoes ADD COLUMN IF NOT EXISTS idpermissao INTEGER`);
+      await sequelize.query(`ALTER TABLE roles_permissoes ADD COLUMN IF NOT EXISTS role VARCHAR(20)`);
+      
+      fixes.push('✅ Colunas da roles_permissoes verificadas/adicionadas');
+    } catch (error) {
+      fixes.push(`❌ Erro roles_permissoes: ${error.message}`);
+    }
+    
+    // 5. TESTAR QUERIES APÓS CORREÇÕES
+    const testes = {};
+    
+    try {
+      const [testPerm] = await sequelize.query(`
+        SELECT idpermissao, nome, categoria FROM permissoes LIMIT 1
+      `);
+      testes.permissoes_test = testPerm[0] || 'Tabela vazia mas estrutura OK';
+    } catch (e) { testes.permissoes_test = `Erro: ${e.message}`; }
+    
+    try {
+      const [testResp] = await sequelize.query(`
+        SELECT idresposta, texto, autor FROM resposta LIMIT 1
+      `);
+      testes.resposta_test = testResp[0] || 'Tabela vazia mas estrutura OK';
+    } catch (e) { testes.resposta_test = `Erro: ${e.message}`; }
+    
+    try {
+      const [testUser] = await sequelize.query(`
+        SELECT idutilizador, nome, fcm_token FROM utilizador WHERE idutilizador = 8
+      `);
+      testes.utilizador_test = testUser[0] || 'User não encontrado';
+    } catch (e) { testes.utilizador_test = `Erro: ${e.message}`; }
+    
+    try {
+      const [testRoles] = await sequelize.query(`
+        SELECT id, role, idpermissao FROM roles_permissoes LIMIT 1
+      `);
+      testes.roles_test = testRoles[0] || 'Tabela vazia mas estrutura OK';
+    } catch (e) { testes.roles_test = `Erro: ${e.message}`; }
+    
+    res.json({
+      status: '🔧 ESTRUTURAS CORRIGIDAS',
+      message: 'Tabelas ajustadas para corresponder aos scripts',
+      operacoes_realizadas: fixes,
+      testes_pos_correcao: testes,
+      proximo_passo: 'Testar queries com estruturas corrigidas',
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro na correção de estruturas:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Erro ao corrigir estruturas',
+      error: error.message
+    });
+  }
+});
+
+// TESTAR TODAS AS QUERIES APÓS CORREÇÕES
+app.get('/test-all-after-fixes', async (req, res) => {
+  try {
+    console.log('🧪 TESTANDO TUDO APÓS CORREÇÕES...');
+    
+    const userId = 8;
+    const resultados = {};
+    
+    // 1. Testar permissões do formando
+    try {
+      const [permissoes] = await sequelize.query(`
+        SELECT rp.id, rp.role, rp.idpermissao, p.nome, p.categoria
+        FROM roles_permissoes rp
+        JOIN permissoes p ON rp.idpermissao = p.idpermissao
+        WHERE rp.role = 'formando'
+      `);
+      resultados.permissoes_formando = permissoes;
+    } catch (e) { resultados.permissoes_formando = `Erro: ${e.message}`; }
+    
+    // 2. Testar respostas dos posts
+    try {
+      const [respostas] = await sequelize.query(`
+        SELECT r.idresposta, r.texto, r.autor, r.idpost, r.idutilizador
+        FROM resposta r
+        WHERE r.idpost IN (85, 86)
+        ORDER BY r.datahora ASC
+      `);
+      resultados.respostas_posts = respostas;
+    } catch (e) { resultados.respostas_posts = `Erro: ${e.message}`; }
+    
+    // 3. Testar utilizador com fcm_token
+    try {
+      const [user] = await sequelize.query(`
+        SELECT idutilizador, nome, tipo, fcm_token
+        FROM utilizador
+        WHERE idutilizador = ${userId}
+      `);
+      resultados.utilizador_completo = user[0] || 'Não encontrado';
+    } catch (e) { resultados.utilizador_completo = `Erro: ${e.message}`; }
+    
+    // 4. Testar inscrições (que funcionam)
+    try {
+      const [inscricoes] = await sequelize.query(`
+        SELECT fi.idinscricao, fi.idutilizador, fi.idcurso, c.titulo, fi.estado
+        FROM form_inscricao fi
+        JOIN cursos c ON fi.idcurso = c.id
+        WHERE fi.idutilizador = ${userId} AND fi.estado = TRUE
+      `);
+      resultados.inscricoes_funcionam = inscricoes;
+    } catch (e) { resultados.inscricoes_funcionam = `Erro: ${e.message}`; }
+    
+    // 5. Testar posts (que funcionam)
+    try {
+      const [posts] = await sequelize.query(`
+        SELECT idpost, titulo, texto, idutilizador
+        FROM post
+        WHERE idutilizador = ${userId}
+      `);
+      resultados.posts_funcionam = posts;
+    } catch (e) { resultados.posts_funcionam = `Erro: ${e.message}`; }
+    
+    res.json({
+      status: '🧪 TESTES COMPLETOS',
+      message: 'Resultados após correções de estrutura',
+      user_id: userId,
+      resultados_finais: resultados,
+      resumo: {
+        permissoes_ok: Array.isArray(resultados.permissoes_formando),
+        respostas_ok: Array.isArray(resultados.respostas_posts),
+        utilizador_ok: typeof resultados.utilizador_completo === 'object',
+        inscricoes_ok: Array.isArray(resultados.inscricoes_funcionam),
+        posts_ok: Array.isArray(resultados.posts_funcionam)
+      },
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro nos testes finais:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Erro nos testes finais',
+      error: error.message
+    });
+  }
+});
+
 // CRIAR TABELAS USANDO OS SCRIPTS EXATOS (se não existirem)
 app.get('/create-missing-tables', async (req, res) => {
   try {
