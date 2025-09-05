@@ -4840,45 +4840,70 @@ app.get('/user-permissions-real/:id', async (req, res) => {
   }
 });
 
-// DEBUG: Verificar estado das permissões após correção
-app.get('/debug-permissoes-estado', async (req, res) => {
+// DEBUG: Verificar problemas com inscrições em cursos
+app.get('/debug-inscricoes/:userId', async (req, res) => {
   try {
-    console.log('🔍 DEBUGANDO ESTADO DAS PERMISSÕES...');
+    const userId = req.params.userId;
+    console.log(`🔍 DEBUGANDO INSCRIÇÕES DO USER ${userId}...`);
     
     const debug = {};
     
-    // 1. Verificar se tabela permissoes existe e tem dados
+    // 1. Verificar estrutura da tabela form_inscricao
     try {
-      const [permissoes] = await sequelize.query('SELECT * FROM permissoes LIMIT 5');
-      debug.permissoes_existem = permissoes.length;
-      debug.permissoes_sample = permissoes;
+      const [estrutura] = await sequelize.query(`
+        SELECT column_name, data_type, is_nullable 
+        FROM information_schema.columns 
+        WHERE table_name = 'form_inscricao' 
+        ORDER BY ordinal_position
+      `);
+      debug.estrutura_form_inscricao = estrutura;
     } catch (e) {
-      debug.permissoes_erro = e.message;
+      debug.estrutura_erro = e.message;
     }
     
-    // 2. Verificar se tabela roles_permissoes existe e tem dados
+    // 2. Ver todas as inscrições do utilizador
     try {
-      const [roles] = await sequelize.query('SELECT * FROM roles_permissoes LIMIT 5');
-      debug.roles_permissoes_existem = roles.length;
-      debug.roles_permissoes_sample = roles;
+      const [inscricoes] = await sequelize.query(`
+        SELECT * FROM form_inscricao 
+        WHERE idutilizador = ${userId}
+      `);
+      debug.inscricoes_do_user = inscricoes;
     } catch (e) {
-      debug.roles_permissoes_erro = e.message;
+      debug.inscricoes_erro = e.message;
     }
     
-    // 3. Testar especificamente a permissão 15
+    // 3. Ver inscrições com detalhes dos cursos
     try {
-      const [perm15] = await sequelize.query('SELECT * FROM permissoes WHERE idpermissao = 15');
-      debug.permissao_15 = perm15;
+      const [inscricoesDetalhadas] = await sequelize.query(`
+        SELECT fi.*, c.titulo, c.descricao 
+        FROM form_inscricao fi
+        LEFT JOIN cursos c ON fi.idcurso = c.id
+        WHERE fi.idutilizador = ${userId}
+      `);
+      debug.inscricoes_com_cursos = inscricoesDetalhadas;
     } catch (e) {
-      debug.permissao_15_erro = e.message;
+      debug.inscricoes_detalhadas_erro = e.message;
     }
     
-    // 4. Testar roles da permissão 15
+    // 4. Ver estrutura da tabela cursos
     try {
-      const [roles15] = await sequelize.query('SELECT * FROM roles_permissoes WHERE idpermissao = 15');
-      debug.roles_permissao_15 = roles15;
+      const [estruturaCursos] = await sequelize.query(`
+        SELECT column_name, data_type 
+        FROM information_schema.columns 
+        WHERE table_name = 'cursos' 
+        ORDER BY ordinal_position
+      `);
+      debug.estrutura_cursos = estruturaCursos;
     } catch (e) {
-      debug.roles_permissao_15_erro = e.message;
+      debug.estrutura_cursos_erro = e.message;
+    }
+    
+    // 5. Ver alguns cursos de exemplo
+    try {
+      const [cursosSample] = await sequelize.query(`SELECT * FROM cursos LIMIT 5`);
+      debug.cursos_sample = cursosSample;
+    } catch (e) {
+      debug.cursos_sample_erro = e.message;
     }
     
     res.json(debug);
