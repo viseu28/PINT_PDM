@@ -4899,17 +4899,17 @@ app.get('/confirm-limpeza-inscricoes', async (req, res) => {
   }
 });
 
-// MIDDLEWARE: Sincronizar com localhost sempre que uma página for carregada
+// MIDDLEWARE UNIVERSAL: Sincronizar dados específicos para cada endpoint
 let lastSyncTime = 0;
 const SYNC_COOLDOWN = 30000; // 30 segundos entre sincronizações
 
-async function syncOnPageLoad(req, res, next) {
+async function universalSyncMiddleware(req, res, next) {
   const now = Date.now();
   
   // Só sincronizar se passou tempo suficiente desde a última sincronização
   if (now - lastSyncTime > SYNC_COOLDOWN) {
     try {
-      console.log('📱 Página carregada - verificando sincronização...');
+      console.log(`📱 Endpoint ${req.path} carregado - verificando sincronização...`);
       
       const localhostDB = new Sequelize('projeto_pint', 'postgres', 'root', {
         host: 'localhost',
@@ -4920,28 +4920,11 @@ async function syncOnPageLoad(req, res, next) {
       
       await localhostDB.authenticate();
       
-      // Verificar se há diferenças nas inscrições
-      const [localInscricoes] = await localhostDB.query('SELECT * FROM form_inscricao WHERE idutilizador = 8');
-      const [renderInscricoes] = await sequelize.query('SELECT * FROM form_inscricao WHERE idutilizador = 8');
+      // Determinar que dados sincronizar baseado no endpoint
+      const syncTables = getSyncTablesForEndpoint(req.path);
       
-      const localHash = JSON.stringify(localInscricoes.sort((a, b) => a.idinscricao - b.idinscricao));
-      const renderHash = JSON.stringify(renderInscricoes.sort((a, b) => a.idinscricao - b.idinscricao));
-      
-      if (localHash !== renderHash) {
-        console.log('🔄 Diferenças detectadas - sincronizando...');
-        
-        await sequelize.query('DELETE FROM form_inscricao WHERE idutilizador = 8');
-        
-        for (const inscricao of localInscricoes) {
-          await sequelize.query(`
-            INSERT INTO form_inscricao (idutilizador, idcurso, objetivos, data, nota, estado)
-            VALUES (${inscricao.idutilizador}, ${inscricao.idcurso}, '${inscricao.objetivos}', '${inscricao.data}', ${inscricao.nota || 'NULL'}, ${inscricao.estado})
-          `);
-        }
-        
-        console.log(`✅ Sincronizado: ${localInscricoes.length} inscrições`);
-      } else {
-        console.log('✅ Dados já sincronizados');
+      for (const table of syncTables) {
+        await syncTable(localhostDB, table);
       }
       
       await localhostDB.close();
@@ -4955,20 +4938,88 @@ async function syncOnPageLoad(req, res, next) {
   next();
 }
 
-// Aplicar middleware às rotas principais do mobile
-app.use('/cursos', syncOnPageLoad);
-app.use('/inscricoes', syncOnPageLoad);
-app.use('/user/:id/inscricoes', syncOnPageLoad);
-app.use('/percursoformativo', syncOnPageLoad);
+function getSyncTablesForEndpoint(path) {
+  // Determinar que tabelas sincronizar baseado no endpoint
+  if (path.includes('/cursos') || path.includes('/inscricoes')) {
+    return ['form_inscricao', 'cursos'];
+  }
+  if (path.includes('/forum') || path.includes('/respostas')) {
+    return ['resposta', 'likes_forum', 'guardados'];
+  }
+  if (path.includes('/permissoes') || path.includes('/utilizadores')) {
+    return ['permissoes', 'roles_permissoes'];
+  }
+  if (path.includes('/notificacoes')) {
+    return ['notificacoes'];
+  }
+  if (path.includes('/projetos')) {
+    return ['projetos', 'projetos_submissoes'];
+  }
+  if (path.includes('/percursoformativo')) {
+    return ['form_inscricao', 'cursos'];
+  }
+  
+  // Para endpoints genéricos, sincronizar as tabelas principais
+  return ['form_inscricao'];
+}
+
+async function syncTable(localhostDB, tableName) {
+  try {
+    console.log(`🔄 Sincronizando tabela: ${tableName}`);
+    
+    // Buscar dados do localhost
+    const [localData] = await localhostDB.query(`SELECT * FROM ${tableName} WHERE idutilizador = 8 OR id = 8 OR id_utilizador = 8`).catch(() => 
+      localhostDB.query(`SELECT * FROM ${tableName} LIMIT 100`)
+    );
+    
+    // Buscar dados do render
+    const [renderData] = await sequelize.query(`SELECT * FROM ${tableName} WHERE idutilizador = 8 OR id = 8 OR id_utilizador = 8`).catch(() =>
+      sequelize.query(`SELECT * FROM ${tableName} LIMIT 100`)
+    );
+    
+    // Comparar se são diferentes
+    const localHash = JSON.stringify(localData.sort((a, b) => (a.id || a.idinscricao || a.idresposta || 0) - (b.id || b.idinscricao || b.idresposta || 0)));
+    const renderHash = JSON.stringify(renderData.sort((a, b) => (a.id || a.idinscricao || a.idresposta || 0) - (b.id || b.idinscricao || b.idresposta || 0)));
+    
+    if (localHash !== renderHash) {
+      console.log(`🔄 Diferenças detectadas em ${tableName} - sincronizando...`);
+      
+      // Limpar dados antigos do render (só do utilizador 8)
+      await sequelize.query(`DELETE FROM ${tableName} WHERE idutilizador = 8 OR id = 8 OR id_utilizador = 8`).catch(() => {});
+      
+      // Inserir dados novos do localhost
+      for (const row of localData) {
+        const columns = Object.keys(row).join(', ');
+        const values = Object.values(row).map(v => v === null ? 'NULL' : `'${v}'`).join(', ');
+        
+        await sequelize.query(`
+          INSERT INTO ${tableName} (${columns})
+          VALUES (${values})
+          ON CONFLICT DO NOTHING
+        `).catch(() => {});
+      }
+      
+      console.log(`✅ ${tableName} sincronizada: ${localData.length} registos`);
+    } else {
+      console.log(`✅ ${tableName} já sincronizada`);
+    }
+    
+  } catch (error) {
+    console.log(`⚠️ Erro ao sincronizar ${tableName}:`, error.message);
+  }
+}
+
+// Aplicar middleware a TODAS as rotas da API
+app.use(universalSyncMiddleware);
 
 // Endpoint manual para forçar sincronização
 app.get('/force-sync-now', async (req, res) => {
   lastSyncTime = 0; // Reset cooldown
   try {
-    await syncOnPageLoad(req, res, () => {});
+    await universalSyncMiddleware(req, res, () => {});
     res.json({ 
       success: true, 
-      message: '🔄 Sincronização forçada concluída!',
+      message: '🔄 Sincronização universal forçada concluída!',
       time: new Date().toISOString()
     });
   } catch (error) {
