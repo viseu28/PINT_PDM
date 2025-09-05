@@ -4996,11 +4996,11 @@ app.get('/real-user-data/:id', async (req, res) => {
 // Endpoint para comparar estruturas de tabelas e identificar diferenças
 app.get('/compare-table-structures', async (req, res) => {
   try {
-    // Verificar estrutura da tabela role_permissoes
-    const rolePermissoesStructure = await sequelize.query(`
+    // Verificar estrutura da tabela roles_permissoes (nome correto)
+    const rolesPermissoesStructure = await sequelize.query(`
       SELECT column_name, data_type, is_nullable, column_default
       FROM information_schema.columns 
-      WHERE table_name = 'role_permissoes' 
+      WHERE table_name = 'roles_permissoes' 
       ORDER BY ordinal_position
     `, { type: QueryTypes.SELECT });
 
@@ -5013,8 +5013,8 @@ app.get('/compare-table-structures', async (req, res) => {
     `, { type: QueryTypes.SELECT });
 
     // Verificar dados existentes nas tabelas
-    const rolePermissoesData = await sequelize.query(
-      'SELECT * FROM role_permissoes LIMIT 5',
+    const rolesPermissoesData = await sequelize.query(
+      'SELECT * FROM roles_permissoes LIMIT 5',
       { type: QueryTypes.SELECT }
     );
 
@@ -5025,11 +5025,11 @@ app.get('/compare-table-structures', async (req, res) => {
 
     res.json({ 
       structures: {
-        role_permissoes: rolePermissoesStructure,
+        roles_permissoes: rolesPermissoesStructure,
         resposta: respostaStructure
       },
       sampleData: {
-        role_permissoes: rolePermissoesData,
+        roles_permissoes: rolesPermissoesData,
         resposta: respostaData
       }
     });
@@ -5044,30 +5044,30 @@ app.get('/fix-table-structures', async (req, res) => {
   try {
     console.log('🔧 Corrigindo estruturas das tabelas...');
     
-    // Primeiro, verificar se as colunas necessárias existem em role_permissoes
-    const rolePermissoesCheck = await sequelize.query(`
+    // Primeiro, verificar se as colunas necessárias existem em roles_permissoes
+    const rolesPermissoesCheck = await sequelize.query(`
       SELECT column_name FROM information_schema.columns 
-      WHERE table_name = 'role_permissoes'
+      WHERE table_name = 'roles_permissoes'
     `, { type: QueryTypes.SELECT });
     
-    const existingColumns = rolePermissoesCheck.map(col => col.column_name);
-    console.log('Colunas existentes em role_permissoes:', existingColumns);
+    const existingColumns = rolesPermissoesCheck.map(col => col.column_name);
+    console.log('Colunas existentes em roles_permissoes:', existingColumns);
     
-    // Adicionar colunas que faltam em role_permissoes se necessário
+    // Adicionar colunas que faltam em roles_permissoes se necessário
     if (!existingColumns.includes('idrole_permissao')) {
-      await sequelize.query('ALTER TABLE role_permissoes ADD COLUMN idrole_permissao SERIAL PRIMARY KEY');
+      await sequelize.query('ALTER TABLE roles_permissoes ADD COLUMN idrole_permissao SERIAL PRIMARY KEY');
     }
     if (!existingColumns.includes('role')) {
-      await sequelize.query('ALTER TABLE role_permissoes ADD COLUMN role VARCHAR(20)');
+      await sequelize.query('ALTER TABLE roles_permissoes ADD COLUMN role VARCHAR(20)');
     }
     if (!existingColumns.includes('idpermissao')) {
-      await sequelize.query('ALTER TABLE role_permissoes ADD COLUMN idpermissao INTEGER');
+      await sequelize.query('ALTER TABLE roles_permissoes ADD COLUMN idpermissao INTEGER');
     }
     if (!existingColumns.includes('datacriacao')) {
-      await sequelize.query('ALTER TABLE role_permissoes ADD COLUMN datacriacao TIMESTAMP DEFAULT NOW()');
+      await sequelize.query('ALTER TABLE roles_permissoes ADD COLUMN datacriacao TIMESTAMP DEFAULT NOW()');
     }
     if (!existingColumns.includes('datatualizacao')) {
-      await sequelize.query('ALTER TABLE role_permissoes ADD COLUMN datatualizacao TIMESTAMP DEFAULT NOW()');
+      await sequelize.query('ALTER TABLE roles_permissoes ADD COLUMN datatualizacao TIMESTAMP DEFAULT NOW()');
     }
     
     // Verificar se as colunas necessárias existem em resposta
@@ -5109,9 +5109,9 @@ app.get('/fix-table-structures', async (req, res) => {
     }
     
     // Verificar estruturas finais
-    const finalRolePermissoes = await sequelize.query(`
+    const finalRolesPermissoes = await sequelize.query(`
       SELECT column_name, data_type FROM information_schema.columns 
-      WHERE table_name = 'role_permissoes' ORDER BY ordinal_position
+      WHERE table_name = 'roles_permissoes' ORDER BY ordinal_position
     `, { type: QueryTypes.SELECT });
     
     const finalResposta = await sequelize.query(`
@@ -5123,7 +5123,7 @@ app.get('/fix-table-structures', async (req, res) => {
       success: true,
       message: 'Estruturas das tabelas corrigidas!',
       finalStructures: {
-        role_permissoes: finalRolePermissoes,
+        roles_permissoes: finalRolesPermissoes,
         resposta: finalResposta
       }
     });
