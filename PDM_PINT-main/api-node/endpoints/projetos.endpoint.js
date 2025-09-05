@@ -173,9 +173,89 @@ router.post('/:idProjeto/submeter', upload.single('arquivo'), async (req, res) =
   }
 });
 
+  // GET /projetos/submissao/download/:id - Download de submissão específica
+  router.get('/submissao/download/:id', async (req, res) => {
+    const { id } = req.params;
+    
+    try {
+      console.log(`🔍 [DOWNLOAD] Buscando submissão com ID: ${id}`);
+      
+      // Buscar a submissão na base de dados
+      const submissao = await Submissoes.findOne({
+        where: { id_submissao: id },
+        attributes: [
+          'id_submissao',
+          'ficheiro_url',
+          'ficheiro_nome_original',
+          'data_submissao'
+        ]
+      });
 
+      if (!submissao) {
+        console.log(`❌ [DOWNLOAD] Submissão não encontrada: ${id}`);
+        return res.status(404).json({ 
+          success: false,
+          error: 'Submissão não encontrada' 
+        });
+      }
 
+      console.log(`✅ [DOWNLOAD] Submissão encontrada:`, {
+        id: submissao.id_submissao,
+        url: submissao.ficheiro_url,
+        nome: submissao.ficheiro_nome_original
+      });
 
+      // Como estás a usar Cloudinary, o ficheiro_url deve ser uma URL completa
+      if (!submissao.ficheiro_url) {
+        console.log(`❌ [DOWNLOAD] URL do ficheiro não encontrada`);
+        return res.status(404).json({ 
+          success: false,
+          error: 'URL do arquivo não encontrada' 
+        });
+      }
+
+      // Se é uma URL do Cloudinary (ou qualquer URL externa)
+      if (submissao.ficheiro_url.startsWith('http')) {
+        console.log(`🔗 [DOWNLOAD] Redirecionando para Cloudinary: ${submissao.ficheiro_url}`);
+        
+        // Definir headers para forçar download
+        res.setHeader('Content-Disposition', `attachment; filename="${submissao.ficheiro_nome_original}"`);
+        
+        // Redirecionar para a URL do Cloudinary
+        return res.redirect(submissao.ficheiro_url);
+      }
+
+      // Fallback para ficheiros locais (caso ainda existam alguns)
+      console.log(`📁 [DOWNLOAD] Tentando enviar arquivo local: ${submissao.ficheiro_url}`);
+      const path = require('path');
+      const fs = require('fs');
+      
+      const filePath = path.join(__dirname, '..', 'uploads', submissao.ficheiro_url);
+      
+      if (!fs.existsSync(filePath)) {
+        console.log(`❌ [DOWNLOAD] Arquivo local não encontrado: ${filePath}`);
+        return res.status(404).json({ 
+          success: false,
+          error: 'Arquivo não encontrado no servidor' 
+        });
+      }
+
+      // Definir headers para download
+      res.setHeader('Content-Disposition', `attachment; filename="${submissao.ficheiro_nome_original}"`);
+      res.setHeader('Content-Type', 'application/octet-stream');
+      
+      // Enviar o arquivo local
+      res.sendFile(filePath);
+
+    } catch (error) {
+      console.error('❌ [DOWNLOAD] Erro ao fazer download da submissão:', error);
+      res.status(500).json({ 
+        success: false,
+        error: 'Erro interno do servidor',
+        details: process.env.NODE_ENV === 'development' ? error.message : null
+      });
+    }
+  });
 
   return router;
 };
