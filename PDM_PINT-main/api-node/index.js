@@ -5036,7 +5036,7 @@ async function syncTable(localhostDB, tableName) {
 }
 
 // Aplicar middleware a TODAS as rotas da API
-app.use(universalSyncMiddleware);
+// app.use(universalSyncMiddleware); // DESATIVADO - estava a quebrar tudo!
 
 // Endpoint manual para forçar sincronização
 app.get('/force-sync-now', async (req, res) => {
@@ -5090,6 +5090,60 @@ app.get('/debug-sync', async (req, res) => {
   } catch (error) {
     console.log('❌ DEBUG ERROR:', error.message);
     res.status(500).json({ error: error.message, stack: error.stack });
+  }
+});
+
+// Endpoint para receber cursos do localhost (PUSH sync)
+app.post('/sync-courses-from-localhost', async (req, res) => {
+  try {
+    console.log('📥 Recebendo cursos do localhost...');
+    
+    const { courses } = req.body;
+    
+    if (!courses || !Array.isArray(courses)) {
+      return res.status(400).json({ error: 'Cursos inválidos' });
+    }
+    
+    console.log(`📚 Recebidos ${courses.length} cursos do localhost`);
+    
+    // Limpar tabela de cursos atual
+    await sequelize.query('DELETE FROM cursos');
+    console.log('🗑️ Tabela cursos limpa');
+    
+    // Inserir novos cursos
+    for (const course of courses) {
+      const columns = Object.keys(course).join(', ');
+      const values = Object.values(course).map(v => 
+        v === null ? 'NULL' : `'${String(v).replace(/'/g, "''")}'`
+      ).join(', ');
+      
+      await sequelize.query(`
+        INSERT INTO cursos (${columns})
+        VALUES (${values})
+        ON CONFLICT (id) DO UPDATE SET
+        titulo = EXCLUDED.titulo,
+        descricao = EXCLUDED.descricao,
+        data_inicio = EXCLUDED.data_inicio,
+        data_fim = EXCLUDED.data_fim,
+        estado = EXCLUDED.estado
+      `);
+    }
+    
+    console.log(`✅ ${courses.length} cursos sincronizados com sucesso!`);
+    
+    res.json({
+      success: true,
+      message: `${courses.length} cursos sincronizados`,
+      courses_synced: courses.length,
+      time: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro ao sincronizar cursos:', error.message);
+    res.status(500).json({ 
+      error: error.message,
+      details: 'Erro ao processar cursos do localhost'
+    });
   }
 });
 
