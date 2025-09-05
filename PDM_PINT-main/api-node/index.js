@@ -4899,6 +4899,208 @@ app.get('/confirm-limpeza-inscricoes', async (req, res) => {
   }
 });
 
+// MIDDLEWARE: Sincronizar com localhost sempre que uma página for carregada
+let lastSyncTime = 0;
+const SYNC_COOLDOWN = 30000; // 30 segundos entre sincronizações
+
+async function syncOnPageLoad(req, res, next) {
+  const now = Date.now();
+  
+  // Só sincronizar se passou tempo suficiente desde a última sincronização
+  if (now - lastSyncTime > SYNC_COOLDOWN) {
+    try {
+      console.log('📱 Página carregada - verificando sincronização...');
+      
+      const localhostDB = new Sequelize('projeto_pint', 'postgres', 'root', {
+        host: 'localhost',
+        dialect: 'postgres',
+        logging: false,
+        pool: { max: 1, min: 0, acquire: 5000, idle: 1000 }
+      });
+      
+      await localhostDB.authenticate();
+      
+      // Verificar se há diferenças nas inscrições
+      const [localInscricoes] = await localhostDB.query('SELECT * FROM form_inscricao WHERE idutilizador = 8');
+      const [renderInscricoes] = await sequelize.query('SELECT * FROM form_inscricao WHERE idutilizador = 8');
+      
+      const localHash = JSON.stringify(localInscricoes.sort((a, b) => a.idinscricao - b.idinscricao));
+      const renderHash = JSON.stringify(renderInscricoes.sort((a, b) => a.idinscricao - b.idinscricao));
+      
+      if (localHash !== renderHash) {
+        console.log('🔄 Diferenças detectadas - sincronizando...');
+        
+        await sequelize.query('DELETE FROM form_inscricao WHERE idutilizador = 8');
+        
+        for (const inscricao of localInscricoes) {
+          await sequelize.query(`
+            INSERT INTO form_inscricao (idutilizador, idcurso, objetivos, data, nota, estado)
+            VALUES (${inscricao.idutilizador}, ${inscricao.idcurso}, '${inscricao.objetivos}', '${inscricao.data}', ${inscricao.nota || 'NULL'}, ${inscricao.estado})
+          `);
+        }
+        
+        console.log(`✅ Sincronizado: ${localInscricoes.length} inscrições`);
+      } else {
+        console.log('✅ Dados já sincronizados');
+      }
+      
+      await localhostDB.close();
+      lastSyncTime = now;
+      
+    } catch (error) {
+      console.log('⚠️ Erro na sincronização automática:', error.message);
+    }
+  }
+  
+  next();
+}
+
+// Aplicar middleware às rotas principais do mobile
+app.use('/cursos', syncOnPageLoad);
+app.use('/inscricoes', syncOnPageLoad);
+app.use('/user/:id/inscricoes', syncOnPageLoad);
+app.use('/percursoformativo', syncOnPageLoad);
+
+// Endpoint manual para forçar sincronização
+app.get('/force-sync-now', async (req, res) => {
+  lastSyncTime = 0; // Reset cooldown
+  try {
+    await syncOnPageLoad(req, res, () => {});
+    res.json({ 
+      success: true, 
+      message: '🔄 Sincronização forçada concluída!',
+      time: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// SINCRONIZAÇÃO EFICIENTE COM POSTGRESQL LISTEN/NOTIFY
+let localhostConnection = null;
+let isListening = false;
+
+async function startEfficientSync() {
+  if (isListening) return;
+  
+  console.log('⚡ SINCRONIZAÇÃO EFICIENTE ATIVADA (PostgreSQL LISTEN/NOTIFY)...');
+  
+  try {
+    // Conectar à base local usando pg nativo para LISTEN
+    const { Client } = require('pg');
+    localhostConnection = new Client({
+      host: 'localhost',
+      database: 'projeto_pint',
+      user: 'postgres',
+      password: 'root',
+      port: 5432
+    });
+    
+    await localhostConnection.connect();
+    console.log('✅ Conectado à base local para LISTEN/NOTIFY');
+    
+    // Criar trigger se não existir
+    await localhostConnection.query(`
+      CREATE OR REPLACE FUNCTION notify_form_inscricao_change()
+      RETURNS trigger AS $$
+      BEGIN
+        PERFORM pg_notify('form_inscricao_changed', 'user_8');
+        RETURN NULL;
+      END;
+      $$ LANGUAGE plpgsql;
+    `);
+    
+    await localhostConnection.query(`
+      DROP TRIGGER IF EXISTS form_inscricao_trigger ON form_inscricao;
+      CREATE TRIGGER form_inscricao_trigger
+      AFTER INSERT OR UPDATE OR DELETE ON form_inscricao
+      FOR EACH ROW
+      WHEN (OLD.idutilizador = 8 OR NEW.idutilizador = 8)
+      EXECUTE FUNCTION notify_form_inscricao_change();
+    `);
+    
+    // Escutar notificações
+    await localhostConnection.query('LISTEN form_inscricao_changed');
+    
+    localhostConnection.on('notification', async (msg) => {
+      if (msg.channel === 'form_inscricao_changed') {
+        console.log('🔔 MUDANÇA DETECTADA NA BD LOCAL! Sincronizando...');
+        await performInstantSync();
+      }
+    });
+    
+    isListening = true;
+    console.log('👂 A escutar mudanças na base de dados local...');
+    
+  } catch (error) {
+    console.error('❌ Erro ao configurar sincronização eficiente:', error.message);
+    isListening = false;
+  }
+}
+
+async function performInstantSync() {
+  try {
+    const localhostDB = new Sequelize('projeto_pint', 'postgres', 'root', {
+      host: 'localhost',
+      dialect: 'postgres',
+      logging: false
+    });
+    
+    await localhostDB.authenticate();
+    
+    // Buscar dados atuais do localhost
+    const [localInscricoes] = await localhostDB.query('SELECT * FROM form_inscricao WHERE idutilizador = 8');
+    
+    // Sincronizar com o Render
+    await sequelize.query('DELETE FROM form_inscricao WHERE idutilizador = 8');
+    
+    for (const inscricao of localInscricoes) {
+      await sequelize.query(`
+        INSERT INTO form_inscricao (idutilizador, idcurso, objetivos, data, nota, estado)
+        VALUES (${inscricao.idutilizador}, ${inscricao.idcurso}, '${inscricao.objetivos}', '${inscricao.data}', ${inscricao.nota || 'NULL'}, ${inscricao.estado})
+      `);
+    }
+    
+    console.log(`⚡ SINCRONIZADO INSTANTANEAMENTE: ${localInscricoes.length} inscrições`);
+    
+    await localhostDB.close();
+    
+  } catch (error) {
+    console.error('❌ Erro na sincronização instantânea:', error.message);
+  }
+}
+
+function stopEfficientSync() {
+  if (localhostConnection) {
+    localhostConnection.end();
+    localhostConnection = null;
+  }
+  isListening = false;
+  console.log('⏹️ Sincronização eficiente DESATIVADA');
+}
+
+// Controlar sincronização eficiente
+app.get('/efficient-sync/start', async (req, res) => {
+  await startEfficientSync();
+  res.json({ 
+    message: '⚡ Sincronização EFICIENTE ativada',
+    note: 'Só sincroniza quando há mudanças reais na BD (PostgreSQL LISTEN/NOTIFY)'
+  });
+});
+
+app.get('/efficient-sync/stop', (req, res) => {
+  stopEfficientSync();
+  res.json({ message: '⏹️ Sincronização eficiente DESATIVADA' });
+});
+
+app.get('/efficient-sync/status', (req, res) => {
+  res.json({ 
+    ativo: isListening,
+    message: isListening ? '⚡ Sincronização eficiente ATIVA (LISTEN/NOTIFY)' : '⏹️ Sincronização eficiente INATIVA',
+    note: 'Esta abordagem é muito mais eficiente - só sincroniza quando há mudanças'
+  });
+});
+
 // SINCRONIZAÇÃO REAL - conectar à base local e copiar dados
 app.get('/sync-from-localhost', async (req, res) => {
   try {
