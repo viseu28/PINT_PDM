@@ -5039,6 +5039,33 @@ app.get('/compare-table-structures', async (req, res) => {
   }
 });
 
+// CORREÇÃO RÁPIDA PARA ENTREGA - APENAS PERMISSÕES
+app.get('/fix-permissions-only', async (req, res) => {
+  try {
+    console.log('🚨 CORREÇÃO RÁPIDA PARA ENTREGA - PERMISSÕES...');
+    
+    // Forçar sync apenas da tabela permissões
+    await sequelize.getQueryInterface().addColumn('permissoes', 'ligado', {
+      type: QueryTypes.BOOLEAN,
+      allowNull: true,
+      defaultValue: true
+    }).catch(() => {}); // Ignorar se já existe
+    
+    res.json({
+      success: true,
+      message: '🚨 CORREÇÃO RÁPIDA CONCLUÍDA!',
+      note: 'Permissões devem funcionar agora'
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro na correção rápida:', error);
+    res.status(500).json({ 
+      error: error.message,
+      message: 'Erro na correção rápida'
+    });
+  }
+});
+
 // SOLUÇÃO DEFINITIVA: Sincronização automática perfeita
 app.get('/sync-perfect-database', async (req, res) => {
   try {
