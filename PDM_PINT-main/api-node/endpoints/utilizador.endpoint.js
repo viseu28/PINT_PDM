@@ -1,31 +1,15 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const { gerarToken, verificarToken } = require('../helpers/jwt.helper');
 
-const JWT_SECRET = 'chave_secreta_segura_para_desenvolvimento';
+// Usar JWT_SECRET do helper para manter consistência
+const JWT_SECRET = process.env.JWT_SECRET || 'chave_secreta_segura_para_desenvolvimento';
 const JWT_EXPIRES_IN = '7d';
 
 module.exports = (db) => {
   const router = express.Router();
   const { utilizador: Utilizador, sequelize } = db;
-
-  // midleware para verificar tokens
-  const verificarToken = (req, res, next) => {
-    const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.split(' ')[1];
-
-    if (!token) {
-      return res.status(401).json({ erro: 'Token de acesso requerido' });
-    }
-
-    jwt.verify(token, JWT_SECRET, (err, user) => {
-      if (err) {
-        return res.status(403).json({ erro: 'Token inválido ou expirado' });
-      }
-      req.user = user;
-      next();
-    });
-  };
 
   router.get('/', async (req, res) => {
     try {
@@ -120,14 +104,13 @@ module.exports = (db) => {
         ultimoacesso: new Date()
       });
 
-      // Criar JWT Token
-      const token = jwt.sign(
+      // Criar JWT Token usando helper para garantir consistência
+      const token = gerarToken(
         {
           id: utilizador.idutilizador,
           email: utilizador.email,
           tipo: utilizador.tipo
         },
-        JWT_SECRET,
         { expiresIn: JWT_EXPIRES_IN }
       );
 
