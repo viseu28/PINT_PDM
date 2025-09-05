@@ -36,6 +36,7 @@ module.exports = (db) => {
                 id_utilizador: idutilizador, 
                 id_post: idpost, 
                 idresposta, 
+                tipo,
                 data_like: new Date() 
             });
             res.status(201).json({ message: 'Like/dislike registado!' });

@@ -5661,6 +5661,16 @@ app.get('/emergency-fix-all', async (req, res) => {
             }
         }
         
+        // Tipo no likes_forum (para like/dislike)
+        if (estruturas.likes_forum && !estruturas.likes_forum.includes('tipo')) {
+            try {
+                await sequelize.query('ALTER TABLE likes_forum ADD COLUMN tipo VARCHAR(10)');
+                fixes.push('✅ Adicionada coluna tipo à tabela likes_forum');
+            } catch (error) {
+                fixes.push('❌ Erro ao adicionar tipo: ' + error.message);
+            }
+        }
+        
         res.json({
             success: true,
             message: 'Análise de emergência concluída',

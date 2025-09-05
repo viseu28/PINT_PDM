@@ -22,6 +22,10 @@ module.exports = function (sequelize, DataTypes) {
         data_like: {
             type: DataTypes.DATE,
             allowNull: true
+        },
+        tipo: {
+            type: DataTypes.STRING(10),
+            allowNull: true
         }
     }, {
         tableName: 'likes_forum',
