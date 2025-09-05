@@ -5039,6 +5039,165 @@ app.get('/compare-table-structures', async (req, res) => {
   }
 });
 
+// Endpoint para corrigir estruturas baseado nas imagens fornecidas
+app.get('/fix-exact-table-structures', async (req, res) => {
+  try {
+    console.log('🔧 Corrigindo estruturas para ficarem iguais ao localhost...');
+    
+    const results = [];
+    
+    // 1. CORRIGIR TABELA roles_permissoes
+    try {
+      // Adicionar colunas que faltam em roles_permissoes
+      await sequelize.query(`
+        ALTER TABLE roles_permissoes 
+        ADD COLUMN IF NOT EXISTS idrole_permissao SERIAL PRIMARY KEY
+      `);
+      results.push('✅ Adicionada coluna idrole_permissao em roles_permissoes');
+      
+      await sequelize.query(`
+        ALTER TABLE roles_permissoes 
+        ADD COLUMN IF NOT EXISTS datacriacao TIMESTAMP DEFAULT NOW()
+      `);
+      results.push('✅ Adicionada coluna datacriacao em roles_permissoes');
+      
+      await sequelize.query(`
+        ALTER TABLE roles_permissoes 
+        ADD COLUMN IF NOT EXISTS datatualizacao TIMESTAMP DEFAULT NOW()
+      `);
+      results.push('✅ Adicionada coluna datatualizacao em roles_permissoes');
+      
+    } catch (error) {
+      results.push(`❌ Erro em roles_permissoes: ${error.message}`);
+    }
+    
+    // 2. CORRIGIR TABELA resposta
+    try {
+      // Adicionar colunas que faltam em resposta
+      await sequelize.query(`
+        ALTER TABLE resposta 
+        ADD COLUMN IF NOT EXISTS datahora TIMESTAMP DEFAULT NOW()
+      `);
+      results.push('✅ Adicionada coluna datahora em resposta');
+      
+      await sequelize.query(`
+        ALTER TABLE resposta 
+        ADD COLUMN IF NOT EXISTS idpost INTEGER
+      `);
+      results.push('✅ Adicionada coluna idpost em resposta');
+      
+      await sequelize.query(`
+        ALTER TABLE resposta 
+        ADD COLUMN IF NOT EXISTS idutilizador INTEGER
+      `);
+      results.push('✅ Adicionada coluna idutilizador em resposta');
+      
+    } catch (error) {
+      results.push(`❌ Erro em resposta: ${error.message}`);
+    }
+    
+    // 3. Verificar estruturas finais
+    const finalRolesPermissoes = await sequelize.query(`
+      SELECT column_name, data_type FROM information_schema.columns 
+      WHERE table_name = 'roles_permissoes' ORDER BY ordinal_position
+    `, { type: QueryTypes.SELECT });
+    
+    const finalResposta = await sequelize.query(`
+      SELECT column_name, data_type FROM information_schema.columns 
+      WHERE table_name = 'resposta' ORDER BY ordinal_position
+    `, { type: QueryTypes.SELECT });
+    
+    res.json({
+      success: true,
+      message: 'Estruturas corrigidas para ficarem iguais ao localhost!',
+      operationsPerformed: results,
+      finalStructures: {
+        roles_permissoes: finalRolesPermissoes,
+        resposta: finalResposta
+      }
+    });
+    
+  } catch (error) {
+    console.error('Erro ao corrigir estruturas:', error);
+    res.status(500).json({ 
+      error: error.message,
+      message: 'Erro ao corrigir estruturas das tabelas'
+    });
+  }
+});
+
+// Endpoint para popular dados nas tabelas baseado nas imagens
+app.get('/populate-tables-from-images', async (req, res) => {
+  try {
+    console.log('📊 Populando tabelas com dados baseados nas imagens...');
+    
+    const results = [];
+    
+    // Verificar se roles_permissoes está vazia e popular
+    const rolesCount = await sequelize.query(
+      'SELECT COUNT(*) as count FROM roles_permissoes',
+      { type: QueryTypes.SELECT }
+    );
+    
+    if (rolesCount[0].count == 0) {
+      // Dados baseados na imagem fornecida
+      await sequelize.query(`
+        INSERT INTO roles_permissoes (role, idpermissao, datacriacao, datatualizacao) VALUES 
+        ('administrador', 16, NOW(), NOW()),
+        ('administrador', 17, NOW(), NOW()),
+        ('administrador', 18, NOW(), NOW()),
+        ('administrador', 19, NOW(), NOW()),
+        ('administrador', 20, NOW(), NOW()),
+        ('administrador', 21, NOW(), NOW()),
+        ('administrador', 22, NOW(), NOW()),
+        ('administrador', 23, NOW(), NOW()),
+        ('formador', 4, NOW(), NOW()),
+        ('formador', 24, NOW(), NOW()),
+        ('formador', 11, NOW(), NOW()),
+        ('formador', 15, NOW(), NOW()),
+        ('formando', 4, NOW(), NOW()),
+        ('formando', 11, NOW(), NOW()),
+        ('formando', 15, NOW(), NOW()),
+        ('formando', 5, NOW(), NOW())
+      `);
+      results.push('✅ Populada tabela roles_permissoes com dados das imagens');
+    } else {
+      results.push(`ℹ️ roles_permissoes já tem ${rolesCount[0].count} registos`);
+    }
+    
+    // Verificar se resposta está vazia
+    const respostaCount = await sequelize.query(
+      'SELECT COUNT(*) as count FROM resposta',
+      { type: QueryTypes.SELECT }
+    );
+    
+    if (respostaCount[0].count == 0) {
+      // Dados baseados na imagem fornecida
+      await sequelize.query(`
+        INSERT INTO resposta (texto, datahora, idpost, idutilizador, autor) VALUES 
+        ('Sim, só é possível fazer inscrição quando o curso se encontra no estado "Em breve"', '2025-09-04 15:07:18.624', 86, 4, 'Administrador 1'),
+        ('Ok, obrigado!', '2025-09-04 15:07:39.519', 86, 8, 'Formando 1')
+      `);
+      results.push('✅ Populada tabela resposta com dados das imagens');
+    } else {
+      results.push(`ℹ️ resposta já tem ${respostaCount[0].count} registos`);
+    }
+    
+    res.json({
+      success: true,
+      message: 'Tabelas populadas com dados baseados nas imagens!',
+      operations: results
+    });
+    
+  } catch (error) {
+    console.error('Erro ao popular tabelas:', error);
+    res.status(500).json({ 
+      error: error.message,
+      message: 'Erro ao popular tabelas'
+    });
+  }
+});
+
 // Endpoint para corrigir estruturas de tabelas baseado nas imagens fornecidas
 app.get('/fix-table-structures', async (req, res) => {
   try {
