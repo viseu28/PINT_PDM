@@ -4840,6 +4840,181 @@ app.get('/user-permissions-real/:id', async (req, res) => {
   }
 });
 
+// PREVIEW: Ver o que seria removido SEM remover
+app.get('/preview-limpeza-inscricoes', async (req, res) => {
+  try {
+    console.log('👀 PREVIEW: O que seria removido...');
+    
+    // Ver todas as inscrições do user 8
+    const [todas] = await sequelize.query('SELECT * FROM form_inscricao WHERE idutilizador = 8');
+    
+    // Identificar quais seriam mantidas vs removidas
+    const mantidas = todas.filter(i => i.idcurso === 45);
+    const removidas = todas.filter(i => i.idcurso !== 45);
+    
+    res.json({
+      preview: true,
+      message: '👀 PREVIEW - Nada foi alterado ainda',
+      total_atual: todas.length,
+      inscricoes_mantidas: {
+        count: mantidas.length,
+        data: mantidas
+      },
+      inscricoes_que_seriam_removidas: {
+        count: removidas.length,
+        data: removidas
+      },
+      action_needed: removidas.length > 0 ? 'Usar /confirm-limpeza-inscricoes para aplicar' : 'Nada para limpar'
+    });
+    
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// CONFIRMAÇÃO: Só remove depois de confirmares
+app.get('/confirm-limpeza-inscricoes', async (req, res) => {
+  try {
+    console.log('✅ CONFIRMADO: Removendo inscrições incorretas...');
+    
+    // Mostrar antes
+    const [antes] = await sequelize.query('SELECT * FROM form_inscricao WHERE idutilizador = 8');
+    
+    // Remover só as incorretas
+    await sequelize.query('DELETE FROM form_inscricao WHERE idutilizador = 8 AND idcurso != 45');
+    
+    // Mostrar depois
+    const [depois] = await sequelize.query('SELECT * FROM form_inscricao WHERE idutilizador = 8');
+    
+    res.json({
+      success: true,
+      message: '✅ LIMPEZA CONCLUÍDA!',
+      antes: { count: antes.length, data: antes },
+      depois: { count: depois.length, data: depois },
+      removidas: antes.length - depois.length
+    });
+    
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// SINCRONIZAÇÃO REAL - conectar à base local e copiar dados
+app.get('/sync-from-localhost', async (req, res) => {
+  try {
+    console.log('🔄 INICIANDO SINCRONIZAÇÃO REAL COM LOCALHOST...');
+    
+    // Conectar à base de dados local
+    const localhostDB = new Sequelize('projeto_pint', 'postgres', 'root', {
+      host: 'localhost',
+      dialect: 'postgres',
+      logging: false
+    });
+    
+    const sync = {};
+    
+    try {
+      await localhostDB.authenticate();
+      sync.conexao_localhost = '✅ Conectado à base local';
+      
+      // 1. SINCRONIZAR INSCRIÇÕES (form_inscricao)
+      const [localInscricoes] = await localhostDB.query('SELECT * FROM form_inscricao WHERE idutilizador = 8');
+      sync.inscricoes_localhost = localInscricoes;
+      
+      // Limpar inscrições do Render
+      await sequelize.query('DELETE FROM form_inscricao WHERE idutilizador = 8');
+      
+      // Inserir inscrições corretas do localhost
+      for (const inscricao of localInscricoes) {
+        await sequelize.query(`
+          INSERT INTO form_inscricao (idutilizador, idcurso, objetivos, data, nota, estado)
+          VALUES (${inscricao.idutilizador}, ${inscricao.idcurso}, '${inscricao.objetivos}', '${inscricao.data}', ${inscricao.nota || 'NULL'}, ${inscricao.estado})
+        `);
+      }
+      
+      sync.sincronizacao_inscricoes = `✅ ${localInscricoes.length} inscrições sincronizadas`;
+      
+      // 2. SINCRONIZAR PERMISSÕES se necessário
+      try {
+        const [localPermissoes] = await localhostDB.query('SELECT * FROM permissoes LIMIT 5');
+        sync.permissoes_localhost = localPermissoes.length;
+      } catch (e) {
+        sync.permissoes_erro = e.message;
+      }
+      
+      // 3. VERIFICAR RESULTADOS
+      const [renderInscricoes] = await sequelize.query('SELECT * FROM form_inscricao WHERE idutilizador = 8');
+      sync.resultado_final = renderInscricoes;
+      
+    } catch (error) {
+      sync.erro_localhost = error.message;
+    } finally {
+      await localhostDB.close();
+    }
+    
+    res.json({
+      success: true,
+      message: '🔄 SINCRONIZAÇÃO COMPLETA!',
+      ...sync
+    });
+    
+  } catch (error) {
+    res.status(500).json({ 
+      error: error.message,
+      nota: 'Certifica-te que a base de dados local está a correr'
+    });
+  }
+});
+
+// APENAS COMPARAR dados - SEM mexer em nada
+app.get('/comparar-dados-origem', async (req, res) => {
+  try {
+    console.log('🔍 APENAS COMPARANDO dados - SEM ALTERAR NADA...');
+    
+    const comparacao = {};
+    
+    // 1. Ver dados atuais no Render
+    const [renderInscricoes] = await sequelize.query('SELECT * FROM form_inscricao WHERE idutilizador = 8');
+    comparacao.render_inscricoes = renderInscricoes;
+    comparacao.render_total = renderInscricoes.length;
+    
+    // 2. Ver dados que DEVIAM estar (baseado na tua imagem)
+    comparacao.deveria_ter = {
+      total: 1,
+      curso: 45,
+      descricao: "Baseado na imagem que mostraste - só 1 inscrição no curso 45"
+    };
+    
+    // 3. Diferenças encontradas
+    const diferencas = [];
+    if (renderInscricoes.length !== 1) {
+      diferencas.push(`❌ Render tem ${renderInscricoes.length} inscrições, deveria ter 1`);
+    }
+    
+    const temCurso45 = renderInscricoes.some(i => i.idcurso === 45);
+    if (!temCurso45) {
+      diferencas.push(`❌ Falta inscrição no curso 45`);
+    }
+    
+    const cursosExtras = renderInscricoes.filter(i => i.idcurso !== 45);
+    if (cursosExtras.length > 0) {
+      diferencas.push(`❌ Cursos extras: ${cursosExtras.map(c => c.idcurso).join(', ')}`);
+    }
+    
+    comparacao.diferencas = diferencas;
+    comparacao.status = diferencas.length === 0 ? "✅ SINCRONIZADO" : "❌ DESSINCRONIZADO";
+    
+    res.json({
+      message: "🔍 COMPARAÇÃO (sem alterar dados)",
+      ...comparacao,
+      nota: "Este endpoint NÃO altera nada - apenas compara"
+    });
+    
+  } catch (error) {
+    res.status(500).json({ erro: error.message });
+  }
+});
+
 // LIMPAR inscrições incorretas - manter só as reais
 app.get('/fix-inscricoes-render', async (req, res) => {
   try {
