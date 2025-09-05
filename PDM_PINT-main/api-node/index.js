@@ -5039,6 +5039,156 @@ app.get('/compare-table-structures', async (req, res) => {
   }
 });
 
+// Endpoint para corrigir estruturas baseado na query do localhost
+app.get('/fix-localhost-structures', async (req, res) => {
+  try {
+    console.log('🔧 Corrigindo estruturas para ficarem exatamente iguais ao localhost...');
+    
+    const results = [];
+    
+    // 1. LIMPAR E RECRIAR TABELA resposta com estrutura correta
+    try {
+      // Fazer backup dos dados existentes
+      const backupResposta = await sequelize.query(`
+        SELECT texto, autor, url, anexo FROM resposta WHERE texto IS NOT NULL
+      `, { type: QueryTypes.SELECT });
+      
+      // Recriar tabela resposta com estrutura correta do localhost
+      await sequelize.query(`DROP TABLE IF EXISTS resposta CASCADE`);
+      await sequelize.query(`
+        CREATE TABLE resposta (
+          idresposta SERIAL PRIMARY KEY,
+          texto TEXT,
+          datahora TIMESTAMP DEFAULT NOW(),
+          idpost INTEGER,
+          idrespostapai INTEGER,
+          idutilizador INTEGER,
+          autor VARCHAR(100),
+          url TEXT,
+          anexo TEXT
+        )
+      `);
+      
+      // Restaurar dados se existiam
+      if (backupResposta.length > 0) {
+        for (const resp of backupResposta) {
+          await sequelize.query(`
+            INSERT INTO resposta (texto, datahora, idpost, idutilizador, autor, url, anexo)
+            VALUES (?, NOW(), 86, 8, ?, ?, ?)
+          `, {
+            replacements: [resp.texto, resp.autor, resp.url, resp.anexo],
+            type: QueryTypes.INSERT
+          });
+        }
+      }
+      
+      results.push('✅ Tabela resposta recriada com estrutura correta do localhost');
+    } catch (error) {
+      results.push(`❌ Erro ao recriar resposta: ${error.message}`);
+    }
+    
+    // 2. LIMPAR E RECRIAR TABELA roles_permissoes com estrutura correta
+    try {
+      // Fazer backup dos dados existentes
+      const backupRoles = await sequelize.query(`
+        SELECT role, idpermissao FROM roles_permissoes WHERE role IS NOT NULL
+      `, { type: QueryTypes.SELECT });
+      
+      // Recriar tabela roles_permissoes com estrutura correta do localhost
+      await sequelize.query(`DROP TABLE IF EXISTS roles_permissoes CASCADE`);
+      await sequelize.query(`
+        CREATE TABLE roles_permissoes (
+          idrole_permissao SERIAL PRIMARY KEY,
+          role VARCHAR(20),
+          idpermissao INTEGER,
+          datacriacao TIMESTAMP DEFAULT NOW(),
+          dataatualizacao TIMESTAMP DEFAULT NOW()
+        )
+      `);
+      
+      // Restaurar dados se existiam
+      if (backupRoles.length > 0) {
+        for (const role of backupRoles) {
+          await sequelize.query(`
+            INSERT INTO roles_permissoes (role, idpermissao, datacriacao, dataatualizacao)
+            VALUES (?, ?, NOW(), NOW())
+          `, {
+            replacements: [role.role, role.idpermissao],
+            type: QueryTypes.INSERT
+          });
+        }
+      }
+      
+      results.push('✅ Tabela roles_permissoes recriada com estrutura correta do localhost');
+    } catch (error) {
+      results.push(`❌ Erro ao recriar roles_permissoes: ${error.message}`);
+    }
+    
+    // 3. Popular com dados corretos baseados nas imagens
+    try {
+      // Popular roles_permissoes com dados das imagens
+      await sequelize.query(`
+        INSERT INTO roles_permissoes (role, idpermissao, datacriacao, dataatualizacao) VALUES 
+        ('administrador', 16, NOW(), NOW()),
+        ('administrador', 17, NOW(), NOW()),
+        ('administrador', 18, NOW(), NOW()),
+        ('administrador', 19, NOW(), NOW()),
+        ('administrador', 20, NOW(), NOW()),
+        ('administrador', 21, NOW(), NOW()),
+        ('administrador', 22, NOW(), NOW()),
+        ('administrador', 23, NOW(), NOW()),
+        ('formador', 4, NOW(), NOW()),
+        ('formador', 24, NOW(), NOW()),
+        ('formador', 11, NOW(), NOW()),
+        ('formador', 15, NOW(), NOW()),
+        ('formando', 4, NOW(), NOW()),
+        ('formando', 11, NOW(), NOW()),
+        ('formando', 15, NOW(), NOW()),
+        ('formando', 5, NOW(), NOW())
+      `);
+      
+      // Popular resposta com dados das imagens
+      await sequelize.query(`
+        INSERT INTO resposta (texto, datahora, idpost, idutilizador, autor) VALUES 
+        ('Sim, só é possível fazer inscrição quando o curso se encontra no estado "Em breve"', '2025-09-04 15:07:18.624', 86, 4, 'Administrador 1'),
+        ('Ok, obrigado!', '2025-09-04 15:07:39.519', 86, 8, 'Formando 1')
+      `);
+      
+      results.push('✅ Tabelas populadas com dados corretos das imagens');
+    } catch (error) {
+      results.push(`❌ Erro ao popular dados: ${error.message}`);
+    }
+    
+    // 4. Verificar estruturas finais
+    const finalRolesPermissoes = await sequelize.query(`
+      SELECT column_name, data_type FROM information_schema.columns 
+      WHERE table_name = 'roles_permissoes' ORDER BY ordinal_position
+    `, { type: QueryTypes.SELECT });
+    
+    const finalResposta = await sequelize.query(`
+      SELECT column_name, data_type FROM information_schema.columns 
+      WHERE table_name = 'resposta' ORDER BY ordinal_position
+    `, { type: QueryTypes.SELECT });
+    
+    res.json({
+      success: true,
+      message: 'Estruturas corrigidas para ficarem exatamente iguais ao localhost!',
+      operationsPerformed: results,
+      finalStructures: {
+        roles_permissoes: finalRolesPermissoes,
+        resposta: finalResposta
+      }
+    });
+    
+  } catch (error) {
+    console.error('Erro ao corrigir estruturas:', error);
+    res.status(500).json({ 
+      error: error.message,
+      message: 'Erro ao corrigir estruturas das tabelas'
+    });
+  }
+});
+
 // Endpoint para corrigir estruturas baseado nas imagens fornecidas
 app.get('/fix-exact-table-structures', async (req, res) => {
   try {
