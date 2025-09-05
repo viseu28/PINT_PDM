@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const { Sequelize } = require('sequelize');
+const { Sequelize, QueryTypes } = require('sequelize');
 const initModels = require('./models/init-models');
 const { FirebasePushService, initializeFirebase } = require('./services/firebase-push.service');
 
