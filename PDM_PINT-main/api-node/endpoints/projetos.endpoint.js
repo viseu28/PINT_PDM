@@ -173,6 +173,21 @@ router.post('/:idProjeto/submeter', upload.single('arquivo'), async (req, res) =
   }
 });
 
+  // GET /projetos/test - Endpoint de teste para verificar se as rotas funcionam
+  router.get('/test', (req, res) => {
+    console.log(`🧪 [TEST] Endpoint de teste de projetos funcionando!`);
+    res.json({
+      success: true,
+      message: 'Endpoint de projetos está funcionando',
+      timestamp: new Date().toISOString(),
+      available_routes: [
+        'GET /projetos/test',
+        'GET /projetos/download/:id',
+        'GET /projetos/submissao/download/:id'
+      ]
+    });
+  });
+
   // GET /projetos/download/:id - Download de enunciado de projeto
   router.get('/download/:id', async (req, res) => {
     const { id } = req.params;
@@ -263,7 +278,10 @@ router.post('/:idProjeto/submeter', upload.single('arquivo'), async (req, res) =
     const { id } = req.params;
     
     try {
-      console.log(`🔍 [DOWNLOAD] Buscando submissão com ID: ${id}`);
+      console.log(`🔍 [DOWNLOAD] === INÍCIO DEBUG SUBMISSÃO ===`);
+      console.log(`🔍 [DOWNLOAD] ID recebido: ${id}`);
+      console.log(`🔍 [DOWNLOAD] Tipo do ID: ${typeof id}`);
+      console.log(`🔍 [DOWNLOAD] URL completa: ${req.originalUrl}`);
       
       // Buscar a submissão na base de dados
       const submissao = await Submissoes.findOne({
@@ -276,11 +294,31 @@ router.post('/:idProjeto/submeter', upload.single('arquivo'), async (req, res) =
         ]
       });
 
+      console.log(`🔍 [DOWNLOAD] Resultado da busca:`, submissao ? submissao.toJSON() : null);
+
       if (!submissao) {
-        console.log(`❌ [DOWNLOAD] Submissão não encontrada: ${id}`);
+        console.log(`❌ [DOWNLOAD] Submissão não encontrada na base de dados: ${id}`);
+        
+        // Vamos também verificar quantas submissões existem na tabela
+        const totalSubmissoes = await Submissoes.count();
+        console.log(`📊 [DOWNLOAD] Total de submissões na tabela: ${totalSubmissoes}`);
+        
+        // Listar algumas submissões para debug
+        const algumasSubmissoes = await Submissoes.findAll({
+          limit: 5,
+          attributes: ['id_submissao', 'ficheiro_url', 'ficheiro_nome_original'],
+          order: [['id_submissao', 'DESC']]
+        });
+        console.log(`📋 [DOWNLOAD] Últimas 5 submissões:`, algumasSubmissoes.map(s => s.toJSON()));
+        
         return res.status(404).json({ 
           success: false,
-          error: 'Submissão não encontrada' 
+          error: 'Submissão não encontrada',
+          debug: {
+            id_procurado: id,
+            total_submissoes: totalSubmissoes,
+            ultimas_submissoes: algumasSubmissoes.map(s => s.id_submissao)
+          }
         });
       }
 
