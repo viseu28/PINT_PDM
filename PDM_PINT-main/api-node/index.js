@@ -4840,6 +4840,53 @@ app.get('/user-permissions-real/:id', async (req, res) => {
   }
 });
 
+// DEBUG: Verificar estado das permissões após correção
+app.get('/debug-permissoes-estado', async (req, res) => {
+  try {
+    console.log('🔍 DEBUGANDO ESTADO DAS PERMISSÕES...');
+    
+    const debug = {};
+    
+    // 1. Verificar se tabela permissoes existe e tem dados
+    try {
+      const [permissoes] = await sequelize.query('SELECT * FROM permissoes LIMIT 5');
+      debug.permissoes_existem = permissoes.length;
+      debug.permissoes_sample = permissoes;
+    } catch (e) {
+      debug.permissoes_erro = e.message;
+    }
+    
+    // 2. Verificar se tabela roles_permissoes existe e tem dados
+    try {
+      const [roles] = await sequelize.query('SELECT * FROM roles_permissoes LIMIT 5');
+      debug.roles_permissoes_existem = roles.length;
+      debug.roles_permissoes_sample = roles;
+    } catch (e) {
+      debug.roles_permissoes_erro = e.message;
+    }
+    
+    // 3. Testar especificamente a permissão 15
+    try {
+      const [perm15] = await sequelize.query('SELECT * FROM permissoes WHERE idpermissao = 15');
+      debug.permissao_15 = perm15;
+    } catch (e) {
+      debug.permissao_15_erro = e.message;
+    }
+    
+    // 4. Testar roles da permissão 15
+    try {
+      const [roles15] = await sequelize.query('SELECT * FROM roles_permissoes WHERE idpermissao = 15');
+      debug.roles_permissao_15 = roles15;
+    } catch (e) {
+      debug.roles_permissao_15_erro = e.message;
+    }
+    
+    res.json(debug);
+  } catch (error) {
+    res.status(500).json({ erro: error.message });
+  }
+});
+
 // ENDPOINT PARA RESPOSTAS USANDO TABELA REAL 'resposta'
 app.get('/post-responses-real/:postId', async (req, res) => {
   try {
