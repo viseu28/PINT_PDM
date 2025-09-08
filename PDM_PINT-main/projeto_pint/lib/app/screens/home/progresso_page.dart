@@ -6,6 +6,7 @@ import 'package:projeto_pint/app/routes/route_names.dart';
 import 'package:projeto_pint/app/models/curso_model.dart';
 import 'package:projeto_pint/app/services/curso_service.dart';
 import 'package:projeto_pint/app/screens/courses/curso_inscrito_page.dart';
+import 'package:projeto_pint/app/screens/courses/curso_detail_page.dart';
 import 'package:projeto_pint/app/widgets/notification_badge.dart';
 
 class ProgressoPage extends StatefulWidget {
@@ -364,12 +365,28 @@ class _CursosPorConcluirBodyState extends State<_CursosPorConcluirBody> {
           final curso = cursosPorConcluir[index];
           return InkWell(
             onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => CursoInscritoPage(curso: curso),
-                ),
-              );
+              // 🔍 Verificar se o curso está "Em breve"
+              final cursoEmBreve = curso.estado != null && 
+                  curso.estado!.toLowerCase().trim() == 'em breve';
+              
+              if (cursoEmBreve) {
+                // 📋 Se o curso está "Em breve", mostrar página de detalhes normal
+                print('🔄 Curso em breve: navegando para CursoDetailPage');
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => CursoDetailPage(curso: curso),
+                  ),
+                );
+              } else {
+                // 📚 Curso já começou: mostrar página interna com projetos/aulas
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => CursoInscritoPage(curso: curso),
+                  ),
+                );
+              }
             },
             child: Card(
               margin: const EdgeInsets.only(bottom: 16),
@@ -627,12 +644,28 @@ class _CursosConcluidosBodyState extends State<_CursosConcluidosBody> {
           final curso = cursosConcluidos[index];
           return InkWell(
             onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => CursoInscritoPage(curso: curso),
-                ),
-              );
+              // 🔍 Verificar se o curso está "Em breve" (improvável para concluídos, mas por segurança)
+              final cursoEmBreve = curso.estado != null && 
+                  curso.estado!.toLowerCase().trim() == 'em breve';
+              
+              if (cursoEmBreve) {
+                // 📋 Se o curso está "Em breve", mostrar página de detalhes normal
+                print('🔄 Curso em breve: navegando para CursoDetailPage');
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => CursoDetailPage(curso: curso),
+                  ),
+                );
+              } else {
+                // 📚 Curso concluído: mostrar página interna (normal para concluídos)
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => CursoInscritoPage(curso: curso),
+                  ),
+                );
+              }
             },
             child: Card(
               margin: const EdgeInsets.only(bottom: 16),

@@ -643,14 +643,30 @@ List<Curso> _getCursosVisiveis() {
                   Expanded(
                     child: ElevatedButton(
                       onPressed: () {
-                        // Como todos os cursos nesta página são inscritos, usar a nova página
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder:
-                                (context) => CursoInscritoPage(curso: curso),
-                          ),
-                        );
+                        // 🔍 Verificar se o curso está "Em breve"
+                        final cursoEmBreve = curso.estado != null && 
+                            curso.estado!.toLowerCase().trim() == 'em breve';
+                        
+                        if (cursoEmBreve) {
+                          // 📋 Se o curso está "Em breve", mostrar página de detalhes normal
+                          // (não deve ver projetos/conteúdo interno ainda)
+                          print('🔄 Curso em breve: navegando para CursoDetailPage');
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => CursoDetailPage(curso: curso),
+                            ),
+                          );
+                        } else {
+                          // 📚 Curso já começou: mostrar página interna com projetos/aulas
+                          print('🔄 Curso ativo: navegando para CursoInscritoPage');
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => CursoInscritoPage(curso: curso),
+                            ),
+                          );
+                        }
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.blue,
