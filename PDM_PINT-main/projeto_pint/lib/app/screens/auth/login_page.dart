@@ -44,11 +44,17 @@ class _LoginPageState extends State<LoginPage> {
         // Verificar se é o primeiro login (precisa alterar password)
         final currentUser = await AuthService.getCurrentUser();
         
+        // 🔍 DEBUG: Verificar o valor do campo
+        debugPrint('🔍 DEBUG: currentUser?.temQueAlterarPassword = ${currentUser?.temQueAlterarPassword}');
+        debugPrint('🔍 DEBUG: Dados completos do usuário = ${currentUser?.toJson()}');
+        
         if (currentUser?.temQueAlterarPassword == true) {
           // Mostrar notificação para alterar password
+          debugPrint('🚨 Deve mostrar modal de alterar password!');
           _mostrarNotificacaoAlterarPassword();
         } else {
           // Login normal - ir para home
+          debugPrint('✅ Login normal - indo para home');
           context.go(RouteNames.home);
         }
         

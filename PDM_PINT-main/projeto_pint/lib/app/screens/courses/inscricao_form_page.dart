@@ -53,6 +53,12 @@ class _InscricaoFormPageState extends State<InscricaoFormPage> {
 
 Future<void> _submeterInscricao() async {
   if (!_formKey.currentState!.validate()) return;
+  
+  // 🛡️ Proteção extra contra duplo clique
+  if (_isLoading) {
+    print('⚠️ Já está a processar inscrição, ignorando...');
+    return;
+  }
 
   setState(() {
     _isLoading = true;
@@ -76,7 +82,7 @@ Future<void> _submeterInscricao() async {
       final int vagas = await CursoService.verificarVagasDisponiveis(widget.curso.id!);
       print('📊 Vagas disponíveis: $vagas');
 
-      if (vagas != null && vagas <= 0) {
+      if (vagas <= 0) {
         _mostrarErro('Não há vagas disponíveis para este curso');
         return;
       }
@@ -84,14 +90,14 @@ Future<void> _submeterInscricao() async {
 
     // 🔹 Chamar endpoint de inscrição
     print('📊 Chamando endpoint de inscrição...');
-    final sucesso = await CursoService.inscreverNoCurso(
+    final resultado = await CursoService.inscreverNoCurso(
       widget.curso.id!,
       objetivos: _objetivosController.text.trim(),
     );
-    print('📡 Resultado da inscrição: $sucesso');
+    print('📡 Resultado da inscrição: $resultado');
 
     if (mounted) {
-      if (sucesso == true) {
+      if (resultado['success'] == true) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
@@ -108,9 +114,9 @@ Future<void> _submeterInscricao() async {
         await Future.delayed(Duration(milliseconds: 500));
         if (mounted) context.pop(true);
       } else {
-        _mostrarErro(
-          'Erro ao realizar inscrição. Já se inscreveu neste curso antes ou ocorreu um erro.'
-        );
+        // Mostrar mensagem específica do erro
+        final String mensagemErro = resultado['message'] ?? 'Erro ao realizar inscrição';
+        _mostrarErro(mensagemErro);
       }
     }
   } catch (e) {

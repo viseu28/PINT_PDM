@@ -82,10 +82,18 @@ class AuthService {
         await prefs.setBool('isLoggedIn', true);
 
         final utilizador = data['utilizador'];
+        
+        // 🔍 DEBUG: Verificar dados do utilizador
+        debugPrint('🔍 DEBUG: Dados do utilizador recebidos: $utilizador');
+        debugPrint('🔍 DEBUG: temquealterarpassword = ${utilizador['temquealterarpassword']}');
+        
         await prefs.setString('userName', utilizador['nome']);
         await prefs.setInt('userId', utilizador['idutilizador']);
         await prefs.setString('userEmail', utilizador['email']);
         await prefs.setBool('temQueAlterarPassword', utilizador['temquealterarpassword'] ?? false);
+        
+        // 🔍 DEBUG: Verificar o que foi salvo
+        debugPrint('🔍 DEBUG: Valor salvo temQueAlterarPassword: ${prefs.getBool('temQueAlterarPassword')}');
 
         if (utilizador['datanascimento'] != null) {
           await prefs.setString('userBirthDate', utilizador['datanascimento']);
@@ -205,7 +213,7 @@ class AuthService {
         }
 
         // Retorna dados do SharedPreferences (podem estar incompletos)
-        return UserModel(
+        final userModel = UserModel(
           id: userId,
           nome: userName,
           email: userEmail ?? 'Não disponível',
@@ -214,6 +222,12 @@ class AuthService {
           pontos: prefs.getInt('userPoints') ?? 0,
           temQueAlterarPassword: prefs.getBool('temQueAlterarPassword') ?? false,
         );
+        
+        // 🔍 DEBUG: Verificar dados do getCurrentUser
+        debugPrint('🔍 DEBUG: getCurrentUser - temQueAlterarPassword = ${userModel.temQueAlterarPassword}');
+        debugPrint('🔍 DEBUG: getCurrentUser - SharedPrefs temQueAlterarPassword = ${prefs.getBool('temQueAlterarPassword')}');
+        
+        return userModel;
       }
 
       return null;
