@@ -146,6 +146,72 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
       );
     }
 
+    // 🔒 Verificar se o quiz já foi respondido
+    final bool jaRespondido = widget.quiz['completo'] == true;
+    
+    if (jaRespondido) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(widget.quiz['titulo'] ?? 'Quiz'),
+          backgroundColor: Colors.orange,
+        ),
+        body: Center(
+          child: Padding(
+            padding: EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.check_circle_outline,
+                  size: 80,
+                  color: Colors.orange,
+                ),
+                SizedBox(height: 16),
+                Text(
+                  'Quiz Já Respondido',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.orange[800],
+                  ),
+                ),
+                SizedBox(height: 12),
+                Text(
+                  'Você já respondeu este quiz anteriormente.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                SizedBox(height: 8),
+                if (widget.quiz['nota'] != null)
+                  Text(
+                    'Nota obtida: ${widget.quiz['nota']}',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.blue[700],
+                    ),
+                  ),
+                SizedBox(height: 32),
+                ElevatedButton.icon(
+                  onPressed: () => Navigator.pop(context),
+                  icon: Icon(Icons.arrow_back),
+                  label: Text('Voltar ao Curso'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     if (_quizDetalhes == null || _questoes.isEmpty) {
       return Scaffold(
         appBar: AppBar(

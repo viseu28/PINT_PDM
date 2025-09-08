@@ -1194,6 +1194,20 @@ class _CursoInscritoPageState extends State<CursoInscritoPage>
   }
 
   void _iniciarQuiz(Map<String, dynamic> quiz) {
+    // 🔒 Verificar se o curso está terminado
+    final bool cursoTerminado = widget.curso.estado?.toLowerCase() == 'terminado';
+    
+    if (cursoTerminado) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Este curso já foi terminado. Não é possível responder a quizzes.'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
     // Navegar para a página do quiz
     Navigator.push(
       context,
@@ -1591,6 +1605,20 @@ class _CursoInscritoPageState extends State<CursoInscritoPage>
     debugPrint("==== Início de _abrirPickerEEnviarProjeto ====");
     debugPrint("Projeto ID: $idProjeto | Usuário ID: $idUser");
 
+    // 🔒 Verificar se o curso está terminado
+    final bool cursoTerminado = widget.curso.estado?.toLowerCase() == 'terminado';
+    
+    if (cursoTerminado) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Este curso já foi terminado. Não é possível submeter projetos.'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
     // 1. Verificar permissões (Android)
     if (Platform.isAndroid) {
       debugPrint("Solicitando permissão de armazenamento...");
@@ -1660,6 +1688,20 @@ class _CursoInscritoPageState extends State<CursoInscritoPage>
 
   Future<void> _enviarArquivo(String idProjeto, String idUser) async {
     debugPrint("==== Início de _enviarArquivo ====");
+
+    // 🔒 Verificar se o curso está terminado
+    final bool cursoTerminado = widget.curso.estado?.toLowerCase() == 'terminado';
+    
+    if (cursoTerminado) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Este curso já foi terminado. Não é possível submeter projetos.'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
     debugPrint("Projeto ID: $idProjeto | Usuário ID: $idUser");
 
     if (_arquivoSelecionado == null) {

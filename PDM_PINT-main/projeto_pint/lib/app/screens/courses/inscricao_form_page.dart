@@ -216,6 +216,14 @@ Future<void> _submeterInscricao() async {
               _buildInfoChip('Pontos', '${widget.curso.pontos}'),
             ],
           ),
+          SizedBox(height: 8),
+          // Data limite de inscrição
+          if (widget.curso.dataInicio != null)
+            Row(
+              children: [
+                _buildInfoChip('Inscrições até', _formatarDataLimite(widget.curso.dataInicio!)),
+              ],
+            ),
         ],
       ),
     );
@@ -339,5 +347,25 @@ Future<void> _submeterInscricao() async {
               ),
       ),
     );
+  }
+
+  String _formatarDataLimite(String dataInicio) {
+    try {
+      final DateTime dataLimite = DateTime.parse(dataInicio);
+      final DateTime agora = DateTime.now();
+      
+      // Calcular a diferença em dias
+      final int diasRestantes = dataLimite.difference(agora).inDays;
+      
+      if (diasRestantes > 0) {
+        return '${diasRestantes} dias';
+      } else if (diasRestantes == 0) {
+        return 'Hoje';
+      } else {
+        return 'Expirado';
+      }
+    } catch (e) {
+      return 'Data inválida';
+    }
   }
 }
