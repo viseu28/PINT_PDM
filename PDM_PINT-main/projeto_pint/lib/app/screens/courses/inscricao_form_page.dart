@@ -24,6 +24,12 @@ class _InscricaoFormPageState extends State<InscricaoFormPage> {
   @override
   void initState() {
     super.initState();
+    
+    // 🔍 DEBUG: Logs imediatos na inicialização
+    print('🔍 DEBUG INIT - dataInicio: ${widget.curso.dataInicio}');
+    print('🔍 DEBUG INIT - curso completo: ${widget.curso.toJson()}');
+    print('🔍 DEBUG INIT - título: ${widget.curso.titulo}');
+    
     if (widget.curso.sincrono == true) {
       _verificarVagasDisponiveis();
     } else {
