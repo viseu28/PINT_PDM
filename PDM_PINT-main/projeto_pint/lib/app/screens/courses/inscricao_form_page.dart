@@ -227,14 +227,6 @@ Future<void> _submeterInscricao() async {
               _buildInfoChip('Pontos', '${widget.curso.pontos}'),
             ],
           ),
-          SizedBox(height: 8),
-          Row(
-            children: [
-              _buildInfoChip('Dificuldade', widget.curso.dificuldade),
-              SizedBox(width: 12),
-              _buildInfoChip('Pontos', '${widget.curso.pontos}'),
-            ],
-          ),
         ],
       ),
     );
