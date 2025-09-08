@@ -355,6 +355,14 @@ module.exports = (db) => {
             c.estado,
             c.imgcurso,
             c.avaliacao,
+            c.vagas_inscricao,
+            COALESCE(
+              (SELECT COUNT(*) 
+               FROM inscricao_curso ic
+               INNER JOIN form_inscricao fi ON ic.idinscricao = fi.idinscricao
+               WHERE ic.idcurso = c.id AND fi.estado = true), 
+              0
+            ) as total_inscritos,
             c.dificuldade,
             c.pontos,
             c.requisitos,
@@ -378,35 +386,46 @@ module.exports = (db) => {
         });
 
         if (allResults.length > 0) {
-          const cursosFormatados = allResults.map(curso => ({
-            id: curso.id,
-            idcurso: curso.id,  // Manter compatibilidade com Flutter
-            titulo: curso.titulo || 'Sem título',
-            descricao: curso.descricao || 'Sem descrição',
-            data_inicio: curso.data_inicio,
-            data_fim: curso.data_fim,
-            dificuldade: curso.dificuldade || 'Iniciante',
-            pontos: curso.pontos || 0,
-            tema: curso.tema || 'Geral',
-            categoria: 'Tecnologia',
-            avaliacao: parseFloat(curso.avaliacao) || 0,
-            tipo: curso.tipo || 'assincrono',
-            sincrono: curso.tipo === 'Síncrono',
-            estado: _formatarEstado(curso.estado),
-            imgcurso: curso.imgcurso || null, // 🔧 CORREÇÃO: usar URL diretamente, não converter para base64
-            inscrito: false,
-            progresso: 0,
-            // Novos campos adicionados
-            formador_responsavel: curso.formador_responsavel,
-            informacoes: curso.informacoes,
-            video: curso.video,
-            alerta_formador: curso.alerta_formador,
-            aprender_no_curso: curso.aprender_no_curso,
-            requisitos: curso.requisitos,
-            publico_alvo: curso.publico_alvo,
-            dados: curso.dados,
-            idioma: curso.idioma
-          }));
+          const cursosFormatados = allResults.map(curso => {
+            // Calcular vagas disponíveis
+            const vagasTotais = curso.vagas_inscricao || 0;
+            const totalInscritos = parseInt(curso.total_inscritos) || 0;
+            const vagasDisponiveis = Math.max(0, vagasTotais - totalInscritos);
+
+            return {
+              id: curso.id,
+              idcurso: curso.id,  // Manter compatibilidade com Flutter
+              titulo: curso.titulo || 'Sem título',
+              descricao: curso.descricao || 'Sem descrição',
+              data_inicio: curso.data_inicio,
+              data_fim: curso.data_fim,
+              dificuldade: curso.dificuldade || 'Iniciante',
+              pontos: curso.pontos || 0,
+              tema: curso.tema || 'Geral',
+              categoria: 'Tecnologia',
+              avaliacao: parseFloat(curso.avaliacao) || 0,
+              tipo: curso.tipo || 'assincrono',
+              sincrono: curso.tipo === 'Síncrono',
+              estado: _formatarEstado(curso.estado),
+              imgcurso: curso.imgcurso || null, // 🔧 CORREÇÃO: usar URL diretamente, não converter para base64
+              inscrito: false,
+              progresso: 0,
+              // Campos de vagas
+              vagas_totais: vagasTotais,
+              total_inscritos: totalInscritos,
+              vagas_disponiveis: vagasDisponiveis,
+              // Novos campos adicionados
+              formador_responsavel: curso.formador_responsavel,
+              informacoes: curso.informacoes,
+              video: curso.video,
+              alerta_formador: curso.alerta_formador,
+              aprender_no_curso: curso.aprender_no_curso,
+              requisitos: curso.requisitos,
+              publico_alvo: curso.publico_alvo,
+              dados: curso.dados,
+              idioma: curso.idioma
+            };
+          });
 
           // Adicionar duração calculada dinamicamente a todos os cursos
           const cursosComDuracao = adicionarDuracaoLista(cursosFormatados);
@@ -430,12 +449,20 @@ module.exports = (db) => {
           c.tipo,
           c.estado,
           c.imgcurso,
+          c.vagas_inscricao,
           COALESCE(
             (SELECT AVG(com.avaliacao) 
              FROM comentarios com 
              WHERE com.idcurso = c.id AND com.avaliacao IS NOT NULL), 
             0
           ) as avaliacao_dinamica,
+          COALESCE(
+            (SELECT COUNT(*) 
+             FROM inscricao_curso ic
+             INNER JOIN form_inscricao fi ON ic.idinscricao = fi.idinscricao
+             WHERE ic.idcurso = c.id AND fi.estado = true), 
+            0
+          ) as total_inscritos,
           c.dificuldade,
           c.pontos,
           c.requisitos,
@@ -456,6 +483,11 @@ module.exports = (db) => {
         // Mapear os dados para o formato esperado pelo Flutter
         const cursosFormatados = results.map(curso => {
           try {
+            // Calcular vagas disponíveis
+            const vagasTotais = curso.vagas_inscricao || 0;
+            const totalInscritos = parseInt(curso.total_inscritos) || 0;
+            const vagasDisponiveis = Math.max(0, vagasTotais - totalInscritos);
+
             const cursoMapeado = {
               id: curso.id,
               idcurso: curso.id,  // Manter compatibilidade com Flutter
@@ -474,6 +506,10 @@ module.exports = (db) => {
               imgcurso: curso.imgcurso || null, // 🔧 CORREÇÃO: usar URL diretamente, não converter para base64
               inscrito: false,
               progresso: 0,
+              // Campos de vagas
+              vagas_totais: vagasTotais,
+              total_inscritos: totalInscritos,
+              vagas_disponiveis: vagasDisponiveis,
               // Novos campos adicionados
               formador_responsavel: curso.formador_responsavel,
               informacoes: curso.informacoes,

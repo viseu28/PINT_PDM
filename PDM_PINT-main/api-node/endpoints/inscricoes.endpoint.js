@@ -126,10 +126,21 @@ module.exports = (db) => {
         console.log('✅ Total de inscritos:', totalInscritos);
         const vagasDisponiveis = curso.vagas_inscricao - totalInscritos;
 
+        console.log(`📊 Informações de vagas do curso "${curso.titulo}":`);
+        console.log(`   - Vagas totais: ${curso.vagas_inscricao}`);
+        console.log(`   - Total de inscritos: ${totalInscritos}`);
+        console.log(`   - Vagas disponíveis: ${vagasDisponiveis}`);
+
         if (vagasDisponiveis <= 0) {
           return res.status(400).json({
             success: false,
-            message: 'Não há vagas disponíveis para este curso'
+            message: 'Não há vagas disponíveis para este curso',
+            details: {
+              vagas_totais: curso.vagas_inscricao,
+              total_inscritos: totalInscritos,
+              vagas_disponiveis: vagasDisponiveis,
+              curso_lotado: true
+            }
           });
         }
         

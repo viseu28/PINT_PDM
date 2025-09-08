@@ -64,6 +64,11 @@ class Curso {
   final String? idioma;
   bool favorito;
 
+  // Campos relacionados às vagas (para cursos síncronos)
+  final int? vagasTotais;
+  final int? totalInscritos;
+  final int? vagasDisponiveis;
+
   Curso({
     this.id,
     required this.titulo,
@@ -92,6 +97,10 @@ class Curso {
     this.duracao,
     this.idioma,
     this.favorito = false,
+    // Campos de vagas
+    this.vagasTotais,
+    this.totalInscritos,
+    this.vagasDisponiveis,
   });
 
   factory Curso.fromJson(Map<String, dynamic> json) {
@@ -122,6 +131,10 @@ class Curso {
       dados: json['dados']?.toString(),
       duracao: json['duracao']?.toString(),
       idioma: json['idioma']?.toString(),
+      // Campos de vagas
+      vagasTotais: json['vagas_totais'],
+      totalInscritos: json['total_inscritos'],
+      vagasDisponiveis: json['vagas_disponiveis'],
     );
   }
 
@@ -153,6 +166,10 @@ class Curso {
       'dados': dados,
       'duracao': duracao,
       'idioma': idioma,
+      // Campos de vagas
+      'vagas_totais': vagasTotais,
+      'total_inscritos': totalInscritos,
+      'vagas_disponiveis': vagasDisponiveis,
     };
   }
 
