@@ -178,6 +178,9 @@ Future<void> _submeterInscricao() async {
                 children: [
                   _buildCursoInfo(),
                   SizedBox(height: 24),
+                  // DEBUG VISUAL - Mostrar dados na tela
+                  _buildDebugVisual(),
+                  SizedBox(height: 24),
                   // Data limite de inscrição - DEBUG
                   _buildDataLimiteInfo(),
                   SizedBox(height: 24),
@@ -352,6 +355,40 @@ Future<void> _submeterInscricao() async {
                   Text(podeInscrever ? 'Confirmar Inscrição' : 'Sem Vagas Disponíveis', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                 ],
               ),
+      ),
+    );
+  }
+
+  Widget _buildDebugVisual() {
+    return Container(
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.yellow.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.orange, width: 2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '🔍 DEBUG VISUAL',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.orange[800]),
+          ),
+          SizedBox(height: 8),
+          Text('dataInicio: ${widget.curso.dataInicio ?? "NULL"}', style: TextStyle(fontSize: 12)),
+          SizedBox(height: 4),
+          Text('título: ${widget.curso.titulo}', style: TextStyle(fontSize: 12)),
+          SizedBox(height: 4),
+          Text('ID: ${widget.curso.id}', style: TextStyle(fontSize: 12)),
+          SizedBox(height: 8),
+          if (widget.curso.dataInicio != null && widget.curso.dataInicio!.isNotEmpty) ...[
+            Text('Data formatada: ${_formatarDataLimite(widget.curso.dataInicio!)}', 
+                 style: TextStyle(fontSize: 12, color: Colors.green[700], fontWeight: FontWeight.bold)),
+          ] else ...[
+            Text('❌ dataInicio é NULL ou vazio!', 
+                 style: TextStyle(fontSize: 12, color: Colors.red[700], fontWeight: FontWeight.bold)),
+          ],
+        ],
       ),
     );
   }
