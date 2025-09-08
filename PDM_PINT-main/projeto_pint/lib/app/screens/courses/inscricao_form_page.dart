@@ -172,6 +172,11 @@ Future<void> _submeterInscricao() async {
                 children: [
                   _buildCursoInfo(),
                   SizedBox(height: 24),
+                  // Data limite de inscrição
+                  if (widget.curso.dataInicio != null) ...[
+                    _buildDataLimiteInfo(),
+                    SizedBox(height: 24),
+                  ],
                   if (widget.curso.sincrono == true &&
                       _vagasDisponiveis != null &&
                       _vagasDisponiveis! >= 0) ...[
@@ -223,13 +228,13 @@ Future<void> _submeterInscricao() async {
             ],
           ),
           SizedBox(height: 8),
-          // Data limite de inscrição
-          if (widget.curso.dataInicio != null)
-            Row(
-              children: [
-                _buildInfoChip('Inscrições até', _formatarDataLimite(widget.curso.dataInicio!)),
-              ],
-            ),
+          Row(
+            children: [
+              _buildInfoChip('Dificuldade', widget.curso.dificuldade),
+              SizedBox(width: 12),
+              _buildInfoChip('Pontos', '${widget.curso.pontos}'),
+            ],
+          ),
         ],
       ),
     );
@@ -355,16 +360,120 @@ Future<void> _submeterInscricao() async {
     );
   }
 
+  Widget _buildDataLimiteInfo() {
+    final dataLimiteTexto = _formatarDataLimite(widget.curso.dataInicio!);
+    final bool isExpirado = dataLimiteTexto == 'Expirado';
+    final bool isHoje = dataLimiteTexto == 'Hoje';
+    
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: isExpirado 
+              ? [Colors.red.withOpacity(0.1), Colors.red.withOpacity(0.05)]
+              : isHoje 
+                  ? [Colors.orange.withOpacity(0.1), Colors.orange.withOpacity(0.05)]
+                  : [Colors.blue.withOpacity(0.1), Colors.blue.withOpacity(0.05)],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isExpirado 
+              ? Colors.red.withOpacity(0.3)
+              : isHoje 
+                  ? Colors.orange.withOpacity(0.3)
+                  : Colors.blue.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: isExpirado 
+                  ? Colors.red.withOpacity(0.1)
+                  : isHoje 
+                      ? Colors.orange.withOpacity(0.1)
+                      : Colors.blue.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              isExpirado 
+                  ? Icons.access_time_filled
+                  : isHoje 
+                      ? Icons.schedule
+                      : Icons.schedule,
+              color: isExpirado 
+                  ? Colors.red[600]
+                  : isHoje 
+                      ? Colors.orange[600]
+                      : Colors.blue[600],
+              size: 24,
+            ),
+          ),
+          SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Prazo de Inscrição',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[700],
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  isExpirado 
+                      ? 'Prazo expirado'
+                      : isHoje 
+                          ? 'Último dia para se inscrever!'
+                          : 'Termina em $dataLimiteTexto',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: isExpirado 
+                        ? Colors.red[700]
+                        : isHoje 
+                            ? Colors.orange[700]
+                            : Colors.blue[700],
+                  ),
+                ),
+                if (!isExpirado && !isHoje) ...[
+                  SizedBox(height: 2),
+                  Text(
+                    'As inscrições encerram no dia anterior ao início do curso',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   String _formatarDataLimite(String dataInicio) {
     try {
-      final DateTime dataLimite = DateTime.parse(dataInicio);
+      final DateTime inicioDateTime = DateTime.parse(dataInicio);
+      // Data limite é o dia anterior ao início do curso
+      final DateTime dataLimite = inicioDateTime.subtract(Duration(days: 1));
       final DateTime agora = DateTime.now();
       
       // Calcular a diferença em dias
       final int diasRestantes = dataLimite.difference(agora).inDays;
       
       if (diasRestantes > 0) {
-        return '${diasRestantes} dias';
+        return '$diasRestantes dias';
       } else if (diasRestantes == 0) {
         return 'Hoje';
       } else {
