@@ -78,12 +78,18 @@ class _CursoInscritoPageState extends State<CursoInscritoPage>
         widget.curso.sincrono == 0;
 
     final bool isTerminado = widget.curso.estado?.toLowerCase() == 'terminado';
+    final bool isEmBreve = widget.curso.estado?.toLowerCase() == 'em breve';
 
-    _cursoInacessivel = isAssincrono && isTerminado;
+    // 🔒 Bloquear acesso a:
+    // 1. Cursos assíncronos terminados
+    // 2. Qualquer curso "Em breve" (não deve ter acesso a conteúdo ainda)
+    _cursoInacessivel = (isAssincrono && isTerminado) || isEmBreve;
 
     print('🔍 Verificação de acessibilidade do curso:');
     print('   - Tipo: ${isAssincrono ? 'Assíncrono' : 'Síncrono'}');
     print('   - Estado: ${widget.curso.estado}');
+    print('   - É "Em breve": $isEmBreve');
+    print('   - É "Terminado": $isTerminado');
     print('   - Curso inacessível: $_cursoInacessivel');
   }
 
@@ -457,16 +463,22 @@ class _CursoInscritoPageState extends State<CursoInscritoPage>
 
   // Widget para mostrar quando o curso é inacessível
   Widget _buildCursoInacessivel() {
+    final bool isEmBreve = widget.curso.estado?.toLowerCase() == 'em breve';
+    
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.lock_outline, size: 64, color: Colors.grey[400]),
+            Icon(
+              isEmBreve ? Icons.schedule : Icons.lock_outline, 
+              size: 64, 
+              color: isEmBreve ? Colors.orange[400] : Colors.grey[400]
+            ),
             const SizedBox(height: 24),
-            const Text(
-              'Acesso Restrito',
+            Text(
+              isEmBreve ? 'Curso Em Breve' : 'Acesso Restrito',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
@@ -475,8 +487,10 @@ class _CursoInscritoPageState extends State<CursoInscritoPage>
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
-            const Text(
-              'Já não tem acesso ao conteúdo deste curso, visto que é um curso Assíncrono e foi dado como terminado.',
+            Text(
+              isEmBreve 
+                ? 'Este curso ainda não iniciou. O acesso aos projetos, quizzes e materiais será liberado quando o curso começar.'
+                : 'Já não tem acesso ao conteúdo deste curso, visto que é um curso Assíncrono e foi dado como terminado.',
               style: TextStyle(fontSize: 16, color: Colors.grey, height: 1.5),
               textAlign: TextAlign.center,
             ),
@@ -484,7 +498,7 @@ class _CursoInscritoPageState extends State<CursoInscritoPage>
             ElevatedButton(
               onPressed: () => Navigator.of(context).pop(),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
+                backgroundColor: isEmBreve ? Colors.orange : Colors.blue,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 32,
