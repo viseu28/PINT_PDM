@@ -172,11 +172,9 @@ Future<void> _submeterInscricao() async {
                 children: [
                   _buildCursoInfo(),
                   SizedBox(height: 24),
-                  // Data limite de inscrição
-                  if (widget.curso.dataInicio != null) ...[
-                    _buildDataLimiteInfo(),
-                    SizedBox(height: 24),
-                  ],
+                  // Data limite de inscrição - DEBUG
+                  _buildDataLimiteInfo(),
+                  SizedBox(height: 24),
                   if (widget.curso.sincrono == true &&
                       _vagasDisponiveis != null &&
                       _vagasDisponiveis! >= 0) ...[
@@ -353,6 +351,31 @@ Future<void> _submeterInscricao() async {
   }
 
   Widget _buildDataLimiteInfo() {
+    // 🔍 DEBUG: Verificar dados do curso
+    print('🔍 DEBUG dataInicio: ${widget.curso.dataInicio}');
+    print('🔍 DEBUG curso completo: ${widget.curso.toJson()}');
+    
+    if (widget.curso.dataInicio == null || widget.curso.dataInicio!.isEmpty) {
+      return Container(
+        padding: EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.grey.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.withOpacity(0.3)),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.info, color: Colors.grey[600]),
+            SizedBox(width: 12),
+            Text(
+              'Data de início não disponível',
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+          ],
+        ),
+      );
+    }
+    
     final dataLimiteTexto = _formatarDataLimite(widget.curso.dataInicio!);
     final bool isExpirado = dataLimiteTexto == 'Expirado';
     final bool isHoje = dataLimiteTexto == 'Hoje';
@@ -456,13 +479,20 @@ Future<void> _submeterInscricao() async {
 
   String _formatarDataLimite(String dataInicio) {
     try {
+      print('🔍 DEBUG: Formatando data - Input: $dataInicio');
       final DateTime inicioDateTime = DateTime.parse(dataInicio);
+      print('🔍 DEBUG: Data parseada: $inicioDateTime');
+      
       // Data limite é o dia anterior ao início do curso
       final DateTime dataLimite = inicioDateTime.subtract(Duration(days: 1));
       final DateTime agora = DateTime.now();
       
+      print('🔍 DEBUG: Data limite: $dataLimite');
+      print('🔍 DEBUG: Data atual: $agora');
+      
       // Calcular a diferença em dias
       final int diasRestantes = dataLimite.difference(agora).inDays;
+      print('🔍 DEBUG: Dias restantes: $diasRestantes');
       
       if (diasRestantes > 0) {
         return '$diasRestantes dias';
@@ -472,7 +502,8 @@ Future<void> _submeterInscricao() async {
         return 'Expirado';
       }
     } catch (e) {
-      return 'Data inválida';
+      print('❌ Erro ao formatar data: $e');
+      return 'Data inválida: $dataInicio';
     }
   }
 }
